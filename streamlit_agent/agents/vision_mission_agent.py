@@ -4,6 +4,12 @@ from agents.vision_mission_logic import (
     execute_agent_stream,
     save_result
 )
+from agents.graph_agent import run_document_refiner
+
+CHAT_SYSTEM_PROMPT = """You are the Vision & Mission Chat Assistant. Your job is to help the user understand, refine, and update the 'vision_mission.md' file.
+You have access to tools to read the current document, write updates to the document, and inspect other files in the workspace.
+If the user asks you to change, add, or rewrite sections of the Vision, Mission, Values, or Brand Promise, use your tools to update the document, and then explain the updates you made.
+Be professional, structured, and helpful."""
 
 def render(selected_model, llm_engine, server_host):
     col_input, col_out = st.columns([1, 1.2])
@@ -67,8 +73,24 @@ def render(selected_model, llm_engine, server_host):
                         status_placeholder.error(f"Error: {e}")
                 
         elif st.session_state.vision_mission_result:
-            with st.container(border=True):
-                st.markdown(st.session_state.vision_mission_result)
+            # 👁️ View / ✍️ Edit Mode Toggle
+            edit_mode = st.toggle("✍️ Edit Document Manually", key="edit_mode_vm")
+            
+            if edit_mode:
+                edited_text = st.text_area(
+                    "Edit Vision & Mission Document", 
+                    value=st.session_state.vision_mission_result, 
+                    height=400, 
+                    key="txt_edit_vm"
+                )
+                if st.button("💾 Save Changes", key="save_vm_manual", use_container_width=True):
+                    save_result(edited_text)
+                    st.session_state.vision_mission_result = edited_text
+                    st.toast("✅ Manual edits saved successfully!")
+                    st.rerun()
+            else:
+                with st.container(border=True):
+                    st.markdown(st.session_state.vision_mission_result)
             
             col_dl, col_sav = st.columns([1, 1])
             with col_dl:
@@ -85,6 +107,38 @@ def render(selected_model, llm_engine, server_host):
                     save_result(st.session_state.vision_mission_result)
                     st.toast("✅ Saved 'vision_mission.md' to Shared Memory!")
                     st.rerun()
+                    
+            # 💬 Chat & Refine Section (ReAct Agent)
+            st.markdown("---")
+            st.markdown("### 💬 Chat & Refine Brand Identity")
+            
+            if "vm_chat_history" not in st.session_state:
+                st.session_state.vm_chat_history = []
+                
+            for msg in st.session_state.vm_chat_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+                    
+            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_vm")
+            if chat_input:
+                with st.chat_message("user"):
+                    st.markdown(chat_input)
+                st.session_state.vm_chat_history.append({"role": "user", "content": chat_input})
+                
+                with st.chat_message("assistant"):
+                    response = run_document_refiner(
+                        chat_history=st.session_state.vm_chat_history[:-1],
+                        user_message=chat_input,
+                        project_folder=st.session_state.get("current_project", "default_project"),
+                        target_doc="vision_mission.md",
+                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
+                        selected_model=selected_model,
+                        llm_engine=llm_engine,
+                        server_host=server_host
+                    )
+                st.session_state.vm_chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+                
         else:
             st.markdown("""
             <div class="empty-agent-state">

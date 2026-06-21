@@ -46,48 +46,203 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------
-# Styling (Glassmorphic Theme & Dark Overrides for input boxes)
+# Session State Initialization (Theme / Accessibility options)
 # ---------------------------------------------------------------
-st.markdown("""
+if "theme_preset" not in st.session_state:
+    st.session_state.theme_preset = "Slate & Sky (Light)"
+if "text_color_choice" not in st.session_state:
+    st.session_state.text_color_choice = "Charcoal (#1e293b)"
+if "font_size_choice" not in st.session_state:
+    st.session_state.font_size_choice = "Normal"
+
+# Resolve Theme variables for global style overrides
+preset = st.session_state.theme_preset
+txt_color_raw = st.session_state.text_color_choice
+font_scale = st.session_state.font_size_choice
+
+# Defaults
+bg_app = "#f8fafc"
+bg_app_image = "radial-gradient(circle at 50% 30%, #f0fdf4 0%, #e0f2fe 50%, #fffbeb 100%)"
+bg_card = "#ffffff"
+border_card = "#e2e8f0"
+border_top_card = "#0ea5e9"
+bg_sidebar = "#f8fafc"
+border_sidebar = "#e2e8f0"
+text_sidebar = "#1e293b"
+
+# Accessibility helper variables
+color_output_header = "#065f46" # Emerald green default
+bg_code = "#f1f5f9"
+color_code = "#0f172a"
+color_thinking = "#ea580c" # Brand orange default
+
+# Default light theme values for handoff alerts
+bg_handoff_ready = "#fffbeb"
+border_handoff_ready = "#fde68a"
+color_handoff_ready = "#92400e"
+
+bg_handoff_active = "#f0fdf4"
+border_handoff_active = "#bbf7d0"
+color_handoff_active = "#166534"
+
+# Adjust presets
+if preset == "Pure High Contrast (Light)":
+    bg_app = "#ffffff"
+    bg_app_image = "none"
+    bg_card = "#ffffff"
+    border_card = "#000000"
+    border_top_card = "#000000"
+    bg_sidebar = "#ffffff"
+    border_sidebar = "#000000"
+    text_sidebar = "#000000"
+    color_output_header = "#000000"
+    bg_code = "#f1f5f9"
+    color_code = "#000000"
+    color_thinking = "#000000"
+    
+    bg_handoff_ready = "#ffffff"
+    border_handoff_ready = "#000000"
+    color_handoff_ready = "#000000"
+    bg_handoff_active = "#ffffff"
+    border_handoff_active = "#000000"
+    color_handoff_active = "#000000"
+elif preset == "Midnight Dark (Dark)":
+    bg_app = "#0f172a"
+    bg_app_image = "radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 100%)"
+    bg_card = "#1e293b"
+    border_card = "#334155"
+    border_top_card = "#38bdf8"
+    bg_sidebar = "#0f172a"
+    border_sidebar = "#334155"
+    text_sidebar = "#f8fafc"
+    color_output_header = "#34d399" # Bright Mint for dark mode
+    bg_code = "#0f172a"
+    color_code = "#38bdf8"
+    color_thinking = "#fb923c" # bright orange
+    
+    bg_handoff_ready = "rgba(245, 158, 11, 0.15)"
+    border_handoff_ready = "rgba(245, 158, 11, 0.35)"
+    color_handoff_ready = "#fbbf24"
+    bg_handoff_active = "rgba(16, 185, 129, 0.15)"
+    border_handoff_active = "rgba(16, 185, 129, 0.35)"
+    color_handoff_active = "#34d399"
+elif preset == "Emerald Mint (Light)":
+    bg_app = "#f0fdf4"
+    bg_app_image = "radial-gradient(circle at 50% 30%, #ecfdf5 0%, #d1fae5 100%)"
+    bg_card = "#ffffff"
+    border_card = "#a7f3d0"
+    border_top_card = "#10b981"
+    bg_sidebar = "#f0fdf4"
+    border_sidebar = "#a7f3d0"
+    text_sidebar = "#065f46"
+    color_output_header = "#047857"
+    bg_code = "#ecfdf5"
+    color_code = "#065f46"
+    color_thinking = "#047857"
+    
+    bg_handoff_ready = "#fffbeb"
+    border_handoff_ready = "#fde68a"
+    color_handoff_ready = "#92400e"
+    bg_handoff_active = "#f0fdf4"
+    border_handoff_active = "#a7f3d0"
+    color_handoff_active = "#047857"
+
+# Resolve text color selection
+if "Charcoal" in txt_color_raw:
+    color_text = "#1e293b"
+elif "Pure Black" in txt_color_raw:
+    color_text = "#000000"
+elif "Navy" in txt_color_raw:
+    color_text = "#0f172a"
+elif "Off-White" in txt_color_raw:
+    color_text = "#f8fafc"
+else:
+    color_text = "#1e293b"
+
+# Resolve font scale
+if font_scale == "Normal":
+    font_size_base = "0.95rem"
+    font_size_small = "0.85rem"
+    font_size_h1 = "2.2rem"
+elif font_scale == "Medium-Large":
+    font_size_base = "1.1rem"
+    font_size_small = "0.95rem"
+    font_size_h1 = "2.6rem"
+else: # Extra Large
+    font_size_base = "1.3rem"
+    font_size_small = "1.1rem"
+    font_size_h1 = "3rem"
+
+# Inject the dynamic stylesheet
+st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
 
-/* ── Reset & base ── */
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    color: #1e293b;
-}
+/* ── Reset & base (with high-compatibility system font fallback) ── */
+html, body, p, span, label, input, textarea, select, button, div, li, a {{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}}
 
-/* ── Full page background (Soft gradient with dot grid) ── */
-.stApp {
-    background-color: #f1f5f9;
-    background-image: 
-        radial-gradient(circle at 50% 30%, #f0fdf4 0%, #e0f2fe 50%, #fffbeb 100%),
-        radial-gradient(rgba(14, 165, 233, 0.08) 1.5px, transparent 0);
+html, body {{
+    color: {color_text} !important;
+}}
+
+/* ── Full page background ── */
+.stApp {{
+    background-color: {bg_app} !important;
+    background-image: {bg_app_image} !important;
     background-size: 100% 100%, 24px 24px;
     background-attachment: fixed;
     min-height: 100vh;
-}
+}}
 
 /* ── Hide Streamlit chrome ── */
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer, header {{ visibility: hidden; }}
 
-/* ── Sidebar Control Panel (Clean Slate/Blue) ── */
-[data-testid="stSidebar"] {
-    background-color: #f8fafc !important;
-    border-right: 1px solid #cbd5e1 !important;
+/* ── Sidebar Control Panel ── */
+[data-testid="stSidebar"] {{
+    background-color: {bg_sidebar} !important;
+    border-right: 1px solid {border_sidebar} !important;
     box-shadow: inset -3px 0 10px rgba(0,0,0,0.01) !important;
-}
-[data-testid="stSidebar"] * {
-    color: #1e293b !important;
-}
-[data-testid="stSidebar"] .section-label {
-    color: #0ea5e9 !important;
-}
+}}
+
+/* Style all standard texts and labels inside sidebar to ensure high contrast & 100% opacity in all browsers */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] li,
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] .stMarkdown p {{
+    color: {text_sidebar} !important;
+    opacity: 1 !important;
+    font-weight: 500 !important;
+}}
+
+/* Darker header styling inside sidebar */
+[data-testid="stSidebar"] .section-label {{
+    color: #0369a1 !important; /* Sky 700 */
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.75rem !important;
+    display: block !important;
+}}
+
+/* Sidebar code block readability styling */
+[data-testid="stSidebar"] code,
+[data-testid="stSidebar"] pre {{
+    color: #0f172a !important; /* slate-900 */
+    background-color: #e2e8f0 !important; /* slate-200 */
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+}}
 
 /* ── Input boxes (Clean white with sky-blue focus) ── */
-.stTextInput input, .stTextArea textarea, .stSelectbox select, select, div[role="listbox"], .stMultiSelect {
-    color: #0f172a !important;
+.stTextInput input, .stTextArea textarea, .stSelectbox select, select, div[role="listbox"], .stMultiSelect {{
+    color: #0f172a !important; /* slate-900 */
     background-color: #ffffff !important;
     border: 1.5px solid #cbd5e1 !important;
     border-radius: 10px !important;
@@ -97,50 +252,53 @@ html, body, [class*="css"] {
     padding: 0.6rem 0.8rem !important;
     font-weight: 500 !important;
     transition: all 0.2s ease !important;
-}
-.stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox select:focus {
+}}
+.stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox select:focus {{
     border-color: #0ea5e9 !important;
     box-shadow: 
         inset 0px 1px 2px rgba(0,0,0,0.05),
         0 0 10px rgba(14, 165, 233, 0.25) !important;
     outline: none !important;
-}
-.stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, label {
-    color: #0284c7 !important;
+}}
+
+/* Form labels - style them globally with high contrast dark slate color */
+.stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, label, [data-testid="stWidgetLabel"] p {{
+    color: {color_text} !important;
     font-weight: 700 !important;
-    font-size: 0.85rem !important;
-    letter-spacing: 0.05em;
+    font-size: 0.88rem !important;
+    letter-spacing: 0.03em;
     margin-bottom: 0.4rem !important;
-}
+    opacity: 1 !important;
+}}
 
 /* ── Global placeholder coloring ── */
-::placeholder {
+::placeholder {{
+    color: #64748b !important; /* slate-500 */
+    opacity: 1 !important;
+}}
+input::placeholder, textarea::placeholder {{
     color: #64748b !important;
-    opacity: 0.85 !important;
-}
-input::placeholder, textarea::placeholder {
-    color: #64748b !important;
-    opacity: 0.85 !important;
-}
+    opacity: 1 !important;
+}}
 
 /* Fix upload text and drag-and-drop box */
-[data-testid="stFileUploader"] {
+[data-testid="stFileUploader"] {{
     background-color: #ffffff !important;
     border: 1.5px dashed #0ea5e9 !important;
     border-radius: 12px !important;
     padding: 1rem !important;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02) !important;
-}
-[data-testid="stFileUploader"] * {
-    color: #475569 !important;
-}
+}}
+[data-testid="stFileUploader"] * {{
+    color: #334155 !important; /* slate-700 */
+}}
 
 /* ── Hero plaque ── */
-.hero {
+.hero {{
     text-align: center;
     padding: 2.5rem 1rem 1.5rem;
-}
-.hero-badge {
+}}
+.hero-badge {{
     display: inline-block;
     background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%) !important;
     color: #ffffff !important;
@@ -152,78 +310,140 @@ input::placeholder, textarea::placeholder {
     border-radius: 6px;
     margin-bottom: 1.2rem;
     box-shadow: 0px 4px 10px rgba(14, 165, 233, 0.2) !important;
-}
-.hero-title {
+}}
+.hero-badge * {{
+    color: #ffffff !important;
+}}
+.hero-title {{
     font-family: 'Playfair Display', serif;
     font-size: clamp(2rem, 5vw, 3.5rem);
     font-weight: 800;
-    color: #0369a1 !important;
+    color: #0c4a6e !important; /* Sky 900 */
     line-height: 1.15;
     margin-bottom: 0.75rem;
-}
-.hero-sub {
-    color: #475569 !important;
+}}
+.hero-sub {{
+    color: #334155 !important; /* slate-700 */
     font-size: 1.1rem;
     max-width: 580px;
     margin: 0 auto 2rem;
     line-height: 1.6;
-}
+}}
 
-/* ── Tactile Raised Cards (Default st.container border=True in Main) ── */
-[data-testid="stMain"] div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-top: 2px solid #38bdf8 !important;
+/* ── Tactile Raised Cards ── */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] {{
+    background-color: {bg_card} !important;
+    background: {bg_card} !important;
+    border: 1px solid {border_card} !important;
+    border-top: 2px solid {border_top_card} !important;
     border-radius: 16px !important;
     box-shadow: 
         0 10px 15px -3px rgba(0,0,0,0.05),
         0 4px 6px -2px rgba(0,0,0,0.02) !important;
     padding: 1.75rem !important;
     margin-bottom: 1.5rem !important;
-}
+}}
 
-/* ── Clean Bright Output Sheet (Right-hand Output Containers in Main) ── */
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #ffffff !important;
-    border: 2px solid #10b981 !important;
-    border-top: 4px solid #10b981 !important;
+/* Reset the inner wrapper to prevent double borders & double padding */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] [class*="e1f1d6gn1"] {{
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}}
+
+/* Set text sizes based on scale choice (excluding inputs and layout wrappers) */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] p,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] li,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] span {{
+    font-size: {font_size_base} !important;
+}}
+
+/* ── Clean Bright Output Sheet ── */
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] {{
+    background-color: {bg_card} !important;
+    background: {bg_card} !important;
+    border: 2px solid #059669 !important; /* emerald-600 */
+    border-top: 4px solid #059669 !important;
     border-radius: 16px !important;
     box-shadow: 
         0 20px 25px -5px rgba(16, 185, 129, 0.08),
         0 10px 10px -5px rgba(16, 185, 129, 0.04) !important;
     padding: 2.2rem !important;
-}
-/* Re-color text elements on output card */
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] * {
-    color: #1e293b !important;
-}
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h1,
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h2,
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h3,
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h4,
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] strong {
-    color: #047857 !important;
+}}
+
+/* Ensure the output inner wrapper doesn't get the emerald border */
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] [class*="e1f1d6gn1"] {{
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}}
+
+/* Re-color text elements on output card explicitly to solve Firefox theme clash (avoiding input fields/buttons) */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] p,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] span,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] li,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] strong,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] em,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] blockquote,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] td,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] th,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] a,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] ul,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] ol {{
+    color: {color_text} !important;
+}}
+
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h1,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h2,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h3,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h4,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h5,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h6,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] strong {{
+    color: {color_output_header} !important;
     font-family: 'Playfair Display', serif !important;
-}
-[data-testid="stMain"] div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] hr {
+}}
+
+/* Code block customization inside containers */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] code {{
+    background-color: {bg_code} !important;
+    color: {color_code} !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    font-family: monospace !important;
+}}
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] pre {{
+    background-color: {bg_code} !important;
+    border: 1px solid {border_card} !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+}}
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] pre code {{
+    background-color: transparent !important;
+    padding: 0 !important;
+}}
+
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] hr {{
     border-color: rgba(16, 185, 129, 0.15) !important;
-}
+}}
 
 /* ── Section Label ── */
-.section-label {
-    font-size: 0.8rem;
+.section-label {{
+    font-size: 0.85rem;
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #0ea5e9 !important;
+    color: #0369a1 !important; /* Sky 700 */
     margin-bottom: 0.75rem;
-}
+    display: block;
+}}
 
 /* ── Bright Gradient Push Button ── */
-.stButton > button {
+.stButton > button {{
     width: 100%;
     background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%) !important;
-    color: #ffffff !important;
     border: none !important;
     border-radius: 8px !important;
     padding: 0.75rem 2rem !important;
@@ -236,88 +456,118 @@ input::placeholder, textarea::placeholder {
         0px 4px 10px rgba(14, 165, 233, 0.3),
         inset 0px 1px 0px rgba(255,255,255,0.4) !important;
     transition: all 0.2s ease !important;
-}
-.stButton > button:hover {
+}}
+.stButton > button,
+.stButton > button * {{
+    color: #ffffff !important;
+}}
+.stButton > button:hover {{
     background: linear-gradient(135deg, #38bdf8 0%, #22c55e 100%) !important;
     box-shadow: 
         0px 6px 14px rgba(14, 165, 233, 0.4),
         inset 0px 1px 0px rgba(255,255,255,0.4) !important;
     transform: translateY(-1px);
-}
-.stButton > button:active {
+}}
+.stButton > button:active {{
     box-shadow: 
         0px 2px 4px rgba(14, 165, 233, 0.2),
         inset 0px 2px 4px rgba(0,0,0,0.1) !important;
     transform: translateY(1px) !important;
-}
+}}
 
-/* ── Physical Folder Tabs (Cyan/Green Underlines) ── */
-div[data-baseweb="tab-list"] {
-    background-color: #e2e8f0 !important;
+/* ── Physical Folder Tabs (Sky Blue Theme - Firefox & Chrome compatible) ── */
+div[data-testid="stTabs"] {{
+    background-color: #f1f5f9 !important; /* slate-100 */
     border-radius: 12px 12px 0 0 !important;
     padding: 0.5rem 0.5rem 0 0.5rem !important;
     border: 1px solid #cbd5e1 !important;
     border-bottom: none !important;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05) !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
     gap: 4px !important;
-}
-div[data-baseweb="tab"] {
-    background: #f1f5f9 !important;
+}}
+button[role="tab"] {{
+    -moz-appearance: none !important;
+    -webkit-appearance: none !important;
+    background: #e2e8f0 !important; /* slate-200 */
     border: 1px solid #cbd5e1 !important;
     border-bottom: none !important;
     border-radius: 8px 8px 0 0 !important;
-    color: #475569 !important;
     padding: 0.6rem 1.2rem !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
     transition: all 0.2s ease !important;
     margin-bottom: -1px !important;
-}
-div[data-baseweb="tab"]:hover {
+}}
+button[role="tab"] p,
+button[role="tab"] span,
+button[role="tab"] div,
+button[role="tab"] {{
+    color: #475569 !important; /* slate-600 */
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}}
+button[role="tab"]:hover p,
+button[role="tab"]:hover span,
+button[role="tab"]:hover div,
+button[role="tab"]:hover {{
     background: #e2e8f0 !important;
-    color: #0f172a !important;
-}
-div[data-baseweb="tab"][aria-selected="true"] {
-    background: linear-gradient(180deg, #0ea5e9 0%, #ffffff 12%, #ffffff 100%) !important;
-    color: #0f172a !important;
+    color: #0f172a !important; /* slate-900 */
+}}
+button[role="tab"][aria-selected="true"] {{
+    background: #ffffff !important;
+    border-top: 3px solid #0369a1 !important; /* Sky 700 */
+    border-bottom: 2px solid #ffffff !important;
+    box-shadow: 0px -4px 12px rgba(14, 165, 233, 0.1) !important;
+}}
+button[role="tab"][aria-selected="true"] p,
+button[role="tab"][aria-selected="true"] span,
+button[role="tab"][aria-selected="true"] div,
+button[role="tab"][aria-selected="true"] {{
+    color: #0369a1 !important; /* Sky 700 */
     font-weight: 800 !important;
-    border-top: 3px solid #0ea5e9 !important;
-    border-bottom: 1px solid #ffffff !important;
-    box-shadow: 0px -4px 12px rgba(14, 165, 233, 0.15) !important;
-}
+}}
 
-/* ── Chat Advisor bubbles (Sky-blue & Emerald details) ── */
-.chat-bubble {
+/* Remove default focus ring in Firefox */
+button::-moz-focus-inner {{
+    border: 0 !important;
+}}
+
+/* ── Chat Advisor bubbles ── */
+.chat-bubble {{
     padding: 1.1rem 1.6rem;
     border-radius: 16px;
     margin-bottom: 1.2rem;
     max-width: 80%;
     line-height: 1.65;
-}
-.chat-bubble.user {
+}}
+.chat-bubble.user {{
     background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
     border: 1px solid #0284c7 !important;
     box-shadow: 
         0 4px 10px rgba(14, 165, 233, 0.2),
         inset 0 1px 0 rgba(255,255,255,0.3) !important;
-    color: #ffffff !important;
     margin-left: auto;
     border-bottom-right-radius: 4px !important;
-}
-.chat-bubble.bot {
+}}
+.chat-bubble.user,
+.chat-bubble.user * {{
+    color: #ffffff !important;
+}}
+.chat-bubble.bot {{
     background: #ffffff !important;
     border: 1.5px solid #e2e8f0 !important;
-    border-left: 4px solid #10b981 !important;
+    border-left: 4px solid #059669 !important; /* emerald-600 */
     box-shadow: 
         0px 4px 12px rgba(0,0,0,0.03),
         inset 1px 1px 0px rgba(255,255,255,1) !important;
-    color: #1e293b !important;
     margin-right: auto;
     border-bottom-left-radius: 4px !important;
-}
+}}
+.chat-bubble.bot,
+.chat-bubble.bot * {{
+    color: #1e293b !important;
+}}
 
 /* ── Thinking dots micro-animation ── */
-.thinking-dot {
+.thinking-dot {{
     display: inline-block;
     width: 7px;
     height: 7px;
@@ -325,40 +575,40 @@ div[data-baseweb="tab"][aria-selected="true"] {
     border-radius: 50%;
     margin-left: 4px;
     animation: pulse 1.2s ease-in-out infinite;
-}
-.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+}}
+.thinking-dot:nth-child(2) {{ animation-delay: 0.2s; }}
+.thinking-dot:nth-child(3) {{ animation-delay: 0.4s; }}
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 0.4; }
-    50% { transform: scale(1.4); opacity: 1; }
-}
+@keyframes pulse {{
+    0%, 100% {{ transform: scale(1); opacity: 0.4; }}
+    50% {{ transform: scale(1.4); opacity: 1; }}
+}}
 
 /* ── Fancy divider ── */
-.fancy-divider {
+.fancy-divider {{
     height: 2px;
     background: linear-gradient(90deg, transparent, #0ea5e9 50%, transparent);
     margin: 2rem 0;
     opacity: 0.4;
-}
+}}
 
 /* ── Expander Panel ── */
-[data-testid="stExpander"] {
+[data-testid="stExpander"] {{
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
-    border-top: 2px solid #10b981 !important;
+    border-top: 2px solid #059669 !important; /* emerald-600 */
     border-radius: 12px !important;
     box-shadow: 
         0px 4px 6px rgba(0,0,0,0.02),
         inset 1px 1px 0px rgba(255,255,255,1) !important;
-}
-[data-testid="stExpander"] summary {
+}}
+[data-testid="stExpander"] summary {{
     font-weight: 700 !important;
     color: #047857 !important;
-}
+}}
 
 /* ── Empty Agent State Placeholder ── */
-.empty-agent-state {
+.empty-agent-state {{
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -370,84 +620,104 @@ div[data-baseweb="tab"][aria-selected="true"] {
     padding: 1.5rem;
     background: #f8fafc;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
-}
-.empty-agent-state .icon {
+}}
+.empty-agent-state .icon {{
     font-size: 3rem;
     margin-bottom: 1rem;
     filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-}
-.empty-agent-state .title {
+}}
+.empty-agent-state .title {{
     font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
     color: #0f172a;
-}
-.empty-agent-state .sub {
+}}
+.empty-agent-state .sub {{
     font-size: 0.85rem;
     line-height: 1.5;
     color: #475569;
-}
+}}
 
-/* ── Global handoff status overrides for bright theme ── */
-div[style*="background: rgba(34,197,94"], div[style*="background:rgba(34,197,94"] {
-    background: rgba(22, 163, 74, 0.08) !important;
-    color: #15803d !important;
-    border-color: rgba(22, 163, 74, 0.25) !important;
-}
-div[style*="background: rgba(234,179,8"], div[style*="background:rgba(234,179,8"] {
-    background: rgba(217, 119, 6, 0.08) !important;
-    color: #b45309 !important;
-    border-color: rgba(217, 119, 6, 0.25) !important;
-}
-div[style*="background: rgba(217,119,6"], div[style*="background:rgba(217,119,6"] {
-    background: rgba(217, 119, 6, 0.08) !important;
-    color: #b45309 !important;
-    border-color: rgba(217, 119, 6, 0.25) !important;
-}
+/* ── Handoff Status Alerts ── */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-status {{
+    border-radius: 8px !important;
+    padding: 0.75rem !important;
+    margin-bottom: 1rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+}}
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-ready,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-ready * {{
+    background-color: {bg_handoff_ready} !important;
+    border: 1px solid {border_handoff_ready} !important;
+    color: {color_handoff_ready} !important;
+}}
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-active,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-active * {{
+    background-color: {bg_handoff_active} !important;
+    border: 1px solid {border_handoff_active} !important;
+    color: {color_handoff_active} !important;
+}}
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-pending,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .handoff-pending * {{
+    background-color: {bg_handoff_ready} !important;
+    border: 1px solid {border_handoff_ready} !important;
+    color: {color_handoff_ready} !important;
+}}
+
+/* ── Agent Thinking/Loading Indicator ── */
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .agent-thinking,
+.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] .agent-thinking * {{
+    text-align: center !important;
+    padding: 1rem !important;
+    color: {color_thinking} !important;
+    font-weight: 700 !important;
+    font-size: 1.05rem !important;
+}}
 
 /* ── Chat helper text ── */
-.chat-helper-text {
+.chat-helper-text {{
     color: #475569 !important;
     font-size: 0.9rem !important;
     margin-bottom: 0.5rem !important;
     line-height: 1.5 !important;
-}
+}}
 
 /* ── Sidebar File Manager List (Compact & Perfectly Aligned) ── */
-[data-testid="stSidebar"] [data-testid="stExpander"] {
+[data-testid="stSidebar"] [data-testid="stExpander"] {{
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
     margin-bottom: 0.25rem !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] details {
+}}
+[data-testid="stSidebar"] [data-testid="stExpander"] details {{
     border: none !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+}}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {{
     padding: 0.4rem 0.6rem !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] summary * {
+}}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary * {{
     font-size: 0.82rem !important;
     font-weight: 600 !important;
     color: #334155 !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] div[data-testid="stVerticalBlock"] {
+}}
+[data-testid="stSidebar"] [data-testid="stExpander"] div[data-testid="stVerticalBlock"] {{
     padding: 0.5rem !important;
     font-size: 0.78rem !important;
     background: #f8fafc !important;
     border-top: 1px solid #cbd5e1 !important;
-}
+}}
 /* Ensure filenames wrap nicely inside sidebar columns without overflow */
-[data-testid="stSidebar"] [data-testid="column"] {
+[data-testid="stSidebar"] [data-testid="column"] {{
     align-self: center !important;
-}
-[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(1) {
+}}
+[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(1) {{
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-}
+}}
 /* Custom aligned delete buttons in sidebar */
-[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(2) .stButton > button {
+[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(2) .stButton > button {{
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -464,13 +734,13 @@ div[style*="background: rgba(217,119,6"], div[style*="background:rgba(217,119,6"
     box-shadow: none !important;
     margin: 0 !important;
     transition: all 0.2s ease !important;
-}
-[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(2) .stButton > button:hover {
+}}
+[data-testid="stSidebar"] [data-testid="column"]:nth-of-type(2) .stButton > button:hover {{
     background: #fecaca !important;
     border-color: #f87171 !important;
     color: #dc2626 !important;
     transform: none !important;
-}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -592,6 +862,37 @@ else:
       -ngl 999 -c 8192 -np 1 -t 8 --port 8080
     ```
     """)
+
+# Theme & Accessibility Configuration Expander
+with st.sidebar.expander("🎨 Theme & Accessibility"):
+    theme_preset_choices = ["Slate & Sky (Light)", "Pure High Contrast (Light)", "Midnight Dark (Dark)", "Emerald Mint (Light)"]
+    theme_preset = st.selectbox(
+        "Theme Preset",
+        theme_preset_choices,
+        index=theme_preset_choices.index(st.session_state.theme_preset)
+    )
+    
+    text_color_choices = ["Charcoal (#1e293b)", "Pure Black (#000000)", "Navy Blue (#0f172a)", "Bright Off-White (#f8fafc)"]
+    text_color_choice = st.selectbox(
+        "Text Color Focus",
+        text_color_choices,
+        index=text_color_choices.index(st.session_state.text_color_choice)
+    )
+    
+    font_size_choices = ["Normal", "Medium-Large", "Extra Large"]
+    font_size_choice = st.selectbox(
+        "Font Size Scale",
+        font_size_choices,
+        index=font_size_choices.index(st.session_state.font_size_choice)
+    )
+    
+    if (theme_preset != st.session_state.theme_preset or
+        text_color_choice != st.session_state.text_color_choice or
+        font_size_choice != st.session_state.font_size_choice):
+        st.session_state.theme_preset = theme_preset
+        st.session_state.text_color_choice = text_color_choice
+        st.session_state.font_size_choice = font_size_choice
+        st.rerun()
 
 st.sidebar.markdown('<div class="fancy-divider"></div>', unsafe_allow_html=True)
 st.sidebar.markdown('<div class="section-label">📁 Shared Memory (Documents)</div>', unsafe_allow_html=True)

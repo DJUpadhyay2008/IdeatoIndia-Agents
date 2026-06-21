@@ -1,30 +1,9 @@
 import streamlit as st
-import os
-from utils import stream_chat, save_document, load_shared_memory, get_docs_dir
-
-SYSTEM_PROMPT = """You are a Principal Software Architect and Systems Engineer. Your goal is to design a robust, scalable, and cost-effective technical architecture for the business idea.
-
-Using the provided business idea and optional context, you will produce EXACTLY the following structured output:
-
-## 🛠️ Technology Stack Recommendations
-- **Frontend:** Framework, hosting, state management.
-- **Backend:** Language, framework, API design (REST/GraphQL).
-- **Database:** Primary database (SQL vs NoSQL), caching layer, storage.
-- **DevOps & Cloud:** Cloud provider, deployment platform, CI/CD pipeline.
-
-## 💾 Database Schema & Data Models
-Provide a clean representation of the core database tables/collections (at least 3-4 key models) with relationships:
-- E.g., `Users Table`, `Products/Services Table`, `Orders/Transactions Table`.
-
-## 🏗️ System Architecture Design
-Describe the system architecture (e.g., client-server, microservices, serverless) and explain how data flows from user to database. Use simple diagrams or structured explanations to show component relationships.
-
-## 🔒 Security, Compliance & Hosting
-- **Security Best Practices:** Encryption (transit/rest), authentication/authorization (JWT/OAuth), protection.
-- **Hosting & Infrastructure:** Recommendations for hosting on budget (e.g., Vercel, Supabase, AWS Free Tier).
-- **Compliance:** Data privacy considerations (e.g., DPDP Act in India, GDPR).
-
-Focus on cost-efficiency for the initial version while ensuring the path to scale is clear."""
+from agents.architecture_logic import (
+    check_handoff_status,
+    execute_agent_stream,
+    save_result
+)
 
 def render(selected_model, llm_engine, server_host):
     col_input, col_out = st.columns([1, 1.2])
@@ -33,16 +12,15 @@ def render(selected_model, llm_engine, server_host):
             st.markdown('<div class="section-label">Agent Configurations</div>', unsafe_allow_html=True)
             
             # Handoff Detection
-            has_prd = os.path.exists(os.path.join(get_docs_dir(), "prd_requirements.md"))
-            if has_prd:
+            if check_handoff_status():
                 st.markdown("""
-                <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; color: #22c55e;">
+                <div class="handoff-status handoff-active">
                     🟢 <strong>Handoff Active:</strong> Successfully loaded <code>prd_requirements.md</code> from Shared Memory!
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                <div style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; color: #eab308;">
+                <div class="handoff-status handoff-pending">
                     ⚠️ <strong>Handoff Pending:</strong> No <code>prd_requirements.md</code> found. Run the Requirements Agent first to design matching database tables and API specs.
                 </div>
                 """, unsafe_allow_html=True)
@@ -63,7 +41,7 @@ def render(selected_model, llm_engine, server_host):
                 with st.container(border=True):
                     status_placeholder = st.empty()
                     status_placeholder.markdown(
-                        '<div style="text-align:center;padding:1rem;color:#ea580c;font-weight:700;">'
+                        '<div class="agent-thinking">'
                         'Designing Technical Architecture Specification'
                         '<span class="thinking-dot"></span>'
                         '<span class="thinking-dot"></span>'
@@ -73,28 +51,24 @@ def render(selected_model, llm_engine, server_host):
                     )
                     output_placeholder = st.empty()
                     
-                    # Context injections
-                    memory_ctx = load_shared_memory()
-                    user_prompt = f"**Business Idea:** {st.session_state.shared_idea}\n"
-                    if tech_pref: user_prompt += f"**Tech Preferences:** {tech_pref}\n"
-                    if scale: user_prompt += f"**Expected Scale:** {scale}\n"
-                    if compliance: user_prompt += f"**Compliance/Security:** {compliance}\n"
-                    if memory_ctx:
-                        user_prompt += f"\n**Reference Context from Shared Memory:**\n{memory_ctx}"
-                    
-                    msgs = [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                    
                     full_text = ""
                     try:
-                        for chunk in stream_chat(msgs, selected_model, llm_engine, server_host):
+                        stream = execute_agent_stream(
+                            shared_idea=st.session_state.shared_idea,
+                            tech_pref=tech_pref,
+                            scale=scale,
+                            compliance=compliance,
+                            selected_model=selected_model,
+                            llm_engine=llm_engine,
+                            server_host=server_host
+                        )
+                        for chunk in stream:
                             full_text += chunk
                             status_placeholder.empty()
                             output_placeholder.markdown(full_text)
+                        
                         st.session_state.architecture_result = full_text
-                        save_document("technical_architecture.md", full_text)
+                        save_result(full_text)
                         st.toast("✅ Automatically saved 'technical_architecture.md' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
@@ -116,7 +90,7 @@ def render(selected_model, llm_engine, server_host):
                 )
             with col_sav:
                 if st.button("💾 Save to Shared Memory", key="sav_arch_btn", use_container_width=True):
-                    save_document("technical_architecture.md", st.session_state.architecture_result)
+                    save_result(st.session_state.architecture_result)
                     st.toast("✅ Saved 'technical_architecture.md' to Shared Memory!")
                     st.rerun()
         else:

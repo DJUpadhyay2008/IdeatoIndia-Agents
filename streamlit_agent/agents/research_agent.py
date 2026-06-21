@@ -1,26 +1,9 @@
 import streamlit as st
-import os
-from utils import stream_chat, save_document, load_shared_memory, get_docs_dir
-
-SYSTEM_PROMPT = """You are a Market Research Analyst and Competitive Intelligence Specialist. Your goal is to analyze the market landscape, target audience, and potential competitors for the business idea.
-
-Using the provided business idea and optional context, you will produce EXACTLY the following structured output:
-
-## 📊 Market Landscape & Trends
-- **Market Size & Growth:** High-level estimate or qualitative assessment of the opportunity.
-- **Key Industry Drivers:** E.g., digital adoption, regulatory shifts.
-- **Target Audience Segmentation:** Clear profiles of the main customer groups.
-
-## ⚔️ Competitive Analysis & Position
-- **Direct Competitors:** List 2-3 specific competitors or current alternatives.
-- **Competitor Strengths & Weaknesses:** What they do well, and where they fall short.
-- **Our Unfair Advantage / USP:** How we can uniquely stand out in this market.
-
-## 🚀 Recommended Go-to-Market (GTM)
-- **Primary Channels:** Where to find and acquire customers.
-- **Positioning Statement:** How to describe the offering to target customers.
-
-Provide realistic, market-specific details. Focus on actionable insights rather than broad generalities."""
+from agents.research_logic import (
+    check_handoff_status,
+    execute_agent_stream,
+    save_result
+)
 
 def render(selected_model, llm_engine, server_host):
     col_input, col_out = st.columns([1, 1.2])
@@ -29,16 +12,15 @@ def render(selected_model, llm_engine, server_host):
             st.markdown('<div class="section-label">Agent Configurations</div>', unsafe_allow_html=True)
             
             # Handoff Detection
-            has_vm = os.path.exists(os.path.join(get_docs_dir(), "vision_mission.md"))
-            if has_vm:
+            if check_handoff_status():
                 st.markdown("""
-                <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; color: #22c55e;">
+                <div class="handoff-status handoff-active">
                     🟢 <strong>Handoff Active:</strong> Successfully loaded <code>vision_mission.md</code> from Shared Memory!
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                <div style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; color: #eab308;">
+                <div class="handoff-status handoff-pending">
                     ⚠️ <strong>Handoff Pending:</strong> No <code>vision_mission.md</code> found. Execute the Vision & Mission agent first for best branding alignment.
                 </div>
                 """, unsafe_allow_html=True)
@@ -59,7 +41,7 @@ def render(selected_model, llm_engine, server_host):
                 with st.container(border=True):
                     status_placeholder = st.empty()
                     status_placeholder.markdown(
-                        '<div style="text-align:center;padding:1rem;color:#ea580c;font-weight:700;">'
+                        '<div class="agent-thinking">'
                         'Performing Market Research & Discovery'
                         '<span class="thinking-dot"></span>'
                         '<span class="thinking-dot"></span>'
@@ -69,28 +51,24 @@ def render(selected_model, llm_engine, server_host):
                     )
                     output_placeholder = st.empty()
                     
-                    # Context injections
-                    memory_ctx = load_shared_memory()
-                    user_prompt = f"**Business Idea:** {st.session_state.shared_idea}\n"
-                    if competitors: user_prompt += f"**Competitors:** {competitors}\n"
-                    if region: user_prompt += f"**Target Region:** {region}\n"
-                    if market_details: user_prompt += f"**Market Context/Questions:** {market_details}\n"
-                    if memory_ctx:
-                        user_prompt += f"\n**Reference Context from Shared Memory:**\n{memory_ctx}"
-                    
-                    msgs = [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                    
                     full_text = ""
                     try:
-                        for chunk in stream_chat(msgs, selected_model, llm_engine, server_host):
+                        stream = execute_agent_stream(
+                            shared_idea=st.session_state.shared_idea,
+                            competitors=competitors,
+                            region=region,
+                            market_details=market_details,
+                            selected_model=selected_model,
+                            llm_engine=llm_engine,
+                            server_host=server_host
+                        )
+                        for chunk in stream:
                             full_text += chunk
                             status_placeholder.empty()
                             output_placeholder.markdown(full_text)
+                        
                         st.session_state.research_result = full_text
-                        save_document("market_research.md", full_text)
+                        save_result(full_text)
                         st.toast("✅ Automatically saved 'market_research.md' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
@@ -112,7 +90,7 @@ def render(selected_model, llm_engine, server_host):
                 )
             with col_sav:
                 if st.button("💾 Save to Shared Memory", key="sav_res_btn", use_container_width=True):
-                    save_document("market_research.md", st.session_state.research_result)
+                    save_result(st.session_state.research_result)
                     st.toast("✅ Saved 'market_research.md' to Shared Memory!")
                     st.rerun()
         else:

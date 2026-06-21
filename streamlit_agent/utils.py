@@ -52,7 +52,10 @@ def get_project_name_from_idea(idea):
 
 def get_docs_dir():
     init_docs_dir()
-    project = st.session_state.get("current_project", "default_project")
+    try:
+        project = st.session_state.get("current_project", "default_project")
+    except Exception:
+        project = os.environ.get("CURRENT_PROJECT", "default_project")
     project_folder = "".join(c for c in project if c.isalnum() or c in ['_', '-']).strip()
     if not project_folder:
         project_folder = "default_project"
@@ -160,9 +163,14 @@ def stream_chat(messages, model, engine="Ollama", host="http://localhost:11434")
         except requests.RequestException as exc:
             raise RuntimeError(f"Ollama request failed: {exc}. Ensure Ollama is running.")
     elif engine == "Google Gemini API":
-        api_key = st.session_state.get("gemini_api_key", "").strip()
+        try:
+            api_key = st.session_state.get("gemini_api_key", "").strip()
+        except Exception:
+            api_key = ""
         if not api_key:
-            raise RuntimeError("Google Gemini API Key is missing. Please enter it in the sidebar.")
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError("Google Gemini API Key is missing. Please enter it in the sidebar or set the GEMINI_API_KEY environment variable.")
         
         gemini_contents = []
         system_instruction = None

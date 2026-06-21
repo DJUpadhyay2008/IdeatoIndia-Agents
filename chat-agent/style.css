@@ -1,0 +1,122 @@
+/* Premium Glassmorphism Chat UI */
+:root {
+  --font-family: 'Inter', sans-serif;
+  --bg-light: hsl(220, 12%, 96%);
+  --bg-dark: hsl(220, 12%, 10%);
+  --bg-gradient: linear-gradient(135deg, hsl(210, 70%, 55%), hsl(260, 70%, 55%));
+  --card-bg: rgba(255, 255, 255, 0.12);
+  --card-blur: 12px;
+  --primary: hsl(260, 80%, 60%);
+  --text-primary: hsl(0, 0%, 100%);
+  --text-secondary: hsl(0, 0%, 80%);
+}
+
+html {
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  background: var(--bg-light);
+  color: #222;
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-gradient);
+  font-size: 16px;
+}
+
+.container {
+  width: min(90vw, 800px);
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.chat-window {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  animation: fadeIn 0.3s ease;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: var(--text-primary);
+}
+
+.message.bot {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+}
+
+.input-area {
+  display: flex;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.input-area input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+.input-area button {
+  background: var(--primary);
+  border: none;
+  color: var(--text-primary);
+  padding: 0 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: transform 0.1s;
+}
+
+.input-area button:hover {
+  transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-color-scheme: dark) {
+  html { background: var(--bg-dark); color: #eee; }
+  .container { backdrop-filter: blur(8px); }
+  .message.bot { color: #f0f0f0; }
+}

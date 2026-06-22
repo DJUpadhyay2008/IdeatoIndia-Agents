@@ -110,14 +110,58 @@ def load_shared_memory():
     
     return "\n".join(context_parts)
 
+def clean_markdown_document(content: str) -> str:
+    """
+    Cleans model outputs by:
+    1. Removing outer markdown code fences (e.g., ```markdown ... ```).
+    2. Stripping conversational prefix/preamble and trailing conversational filler.
+    """
+    if not content:
+        return ""
+    
+    # Normalize line endings
+    lines = content.strip().splitlines()
+    
+    # 1. Remove markdown code fences if the model wrapped the entire response
+    if lines and (lines[0].strip().startswith("```markdown") or lines[0].strip().startswith("```")):
+        lines = lines[1:]
+    if lines and lines[-1].strip().startswith("```"):
+        lines = lines[:-1]
+        
+    # Join back to process prefix/suffix
+    text = "\n".join(lines).strip()
+    
+    # 2. Strip conversational preambles
+    # Documents should start with a heading or horizontal rule.
+    # Find first occurrence of '##', '#', or '---'
+    first_header_idx = -1
+    for marker in ["##", "#", "---"]:
+        idx = text.find(marker)
+        if idx != -1:
+            if first_header_idx == -1 or idx < first_header_idx:
+                first_header_idx = idx
+                
+    if first_header_idx > 0:
+        # Check if the text before the first header contains typical conversational preamble
+        preamble = text[:first_header_idx].strip()
+        # If preamble is short and doesn't contain markdown headers, it's likely conversational filler.
+        if len(preamble) < 300 and not any(line.strip().startswith("#") for line in preamble.splitlines()):
+            text = text[first_header_idx:]
+            
+    return text.strip()
+
 def save_document(name, content):
     docs_dir = get_docs_dir()
     name = "".join(c for c in name if c.isalnum() or c in ['.', '_', '-']).strip()
     if not name:
         name = "unnamed_doc.txt"
     path = os.path.join(docs_dir, name)
+    
+    # Clean output to remove code blocks and conversational filler
+    cleaned_content = clean_markdown_document(content)
+    
     with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
+        f.write(cleaned_content)
 
 def delete_document(name):
     docs_dir = get_docs_dir()

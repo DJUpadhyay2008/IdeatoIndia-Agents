@@ -149,6 +149,8 @@ def run_document_refiner(
         "2. Do NOT just output the updated text in your message or claim you have updated the file without calling the tool.\n"
         "3. You must execute the `write_document` tool to make your changes persistent.\n"
         "4. Always call `read_current_document` first if you need to know the current state before updating.\n"
+        "5. If the user asks for any change, rewrite, addition, deletion, or modification, do NOT reply with just 'Yes' or ask for confirmation/clarification. Instead, IMMEDIATELY call the `read_current_document` tool to get the content, make the changes, call the `write_document` tool to save them, and then explain the updates to the user.\n"
+        "6. Do not wait for the user's permission to edit the file. If details are missing, make reasonable assumptions/extrapolations and update the document directly. Your primary goal is to keep the document updated.\n"
         "============================================"
     )
 

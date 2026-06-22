@@ -18,18 +18,12 @@ def render(selected_model, llm_engine, server_host):
             st.markdown('<div class="section-label">Agent Configurations</div>', unsafe_allow_html=True)
             
             # Handoff Detection
-            if check_handoff_status():
-                st.markdown("""
-                <div class="handoff-status handoff-active">
-                    🟢 <strong>Handoff Active:</strong> Successfully loaded <code>prd_requirements.md</code> from Shared Memory!
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="handoff-status handoff-pending">
-                    ⚠️ <strong>Handoff Pending:</strong> No <code>prd_requirements.md</code> found. Run the Requirements Agent first to design matching database tables and API specs.
-                </div>
-                """, unsafe_allow_html=True)
+            status_class, status_text = check_handoff_status()
+            st.markdown(f"""
+            <div class="handoff-status {status_class}">
+                {status_text}
+            </div>
+            """, unsafe_allow_html=True)
             
             tech_pref = st.text_input("Tech Stack Preferences", placeholder="e.g. Python (FastAPI), React, Postgres, Supabase...", key="arch_tech")
             scale = st.text_input("Expected Traffic / User Base", placeholder="e.g. 100 orders/day at launch, up to 10k users/month in Year 1...", key="arch_scale")
@@ -37,6 +31,48 @@ def render(selected_model, llm_engine, server_host):
             
             st.markdown("<br>", unsafe_allow_html=True)
             generate_arch_btn = st.button("✨ Execute Architecture Agent", key="btn_exec_arch")
+            
+        if st.session_state.architecture_result:
+            # 💬 Chat & Refine Section (ReAct Agent)
+            st.markdown("---")
+            st.markdown("### 💬 Chat & Refine Technical Architecture")
+            
+            chat_container = st.container(height=350)
+            with chat_container:
+                if "arch_chat_history" not in st.session_state:
+                    st.session_state.arch_chat_history = []
+                for msg in st.session_state.arch_chat_history:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+            
+            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_arch")
+            if chat_input:
+                with st.chat_message("user"):
+                    st.markdown(chat_input)
+                st.session_state.arch_chat_history.append({"role": "user", "content": chat_input})
+                
+                with st.chat_message("assistant"):
+                    response = run_document_refiner(
+                        chat_history=st.session_state.arch_chat_history[:-1],
+                        user_message=chat_input,
+                        project_folder=st.session_state.get("current_project", "default_project"),
+                        target_doc="technical_architecture.md",
+                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
+                        selected_model=selected_model,
+                        llm_engine=llm_engine,
+                        server_host=server_host
+                    )
+                st.session_state.arch_chat_history.append({"role": "assistant", "content": response})
+                
+                # Reload document from disk to ensure UI is in sync
+                import os
+                from utils import get_docs_dir
+                doc_path = os.path.join(get_docs_dir(), "technical_architecture.md")
+                if os.path.exists(doc_path):
+                    with open(doc_path, "r", encoding="utf-8") as f:
+                        st.session_state.architecture_result = f.read()
+                        
+                st.rerun()
         
     with col_out:
         if generate_arch_btn:
@@ -116,37 +152,6 @@ def render(selected_model, llm_engine, server_host):
                     st.toast("✅ Saved 'technical_architecture.md' to Shared Memory!")
                     st.rerun()
                     
-            # 💬 Chat & Refine Section (ReAct Agent)
-            st.markdown("---")
-            st.markdown("### 💬 Chat & Refine Technical Architecture")
-            
-            if "arch_chat_history" not in st.session_state:
-                st.session_state.arch_chat_history = []
-                
-            for msg in st.session_state.arch_chat_history:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-                    
-            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_arch")
-            if chat_input:
-                with st.chat_message("user"):
-                    st.markdown(chat_input)
-                st.session_state.arch_chat_history.append({"role": "user", "content": chat_input})
-                
-                with st.chat_message("assistant"):
-                    response = run_document_refiner(
-                        chat_history=st.session_state.arch_chat_history[:-1],
-                        user_message=chat_input,
-                        project_folder=st.session_state.get("current_project", "default_project"),
-                        target_doc="technical_architecture.md",
-                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
-                        selected_model=selected_model,
-                        llm_engine=llm_engine,
-                        server_host=server_host
-                    )
-                st.session_state.arch_chat_history.append({"role": "assistant", "content": response})
-                st.rerun()
-                
         else:
             st.markdown("""
             <div class="empty-agent-state">

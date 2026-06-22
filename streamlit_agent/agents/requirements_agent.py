@@ -47,6 +47,48 @@ def render(selected_model, llm_engine, server_host):
             
             st.markdown("<br>", unsafe_allow_html=True)
             generate_req_btn = st.button("✨ Execute Requirements Agent", key="btn_exec_req")
+            
+        if st.session_state.requirements_result:
+            # 💬 Chat & Refine Section (ReAct Agent)
+            st.markdown("---")
+            st.markdown("### 💬 Chat & Refine PRD Requirements")
+            
+            chat_container = st.container(height=350)
+            with chat_container:
+                if "req_chat_history" not in st.session_state:
+                    st.session_state.req_chat_history = []
+                for msg in st.session_state.req_chat_history:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+            
+            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_req")
+            if chat_input:
+                with st.chat_message("user"):
+                    st.markdown(chat_input)
+                st.session_state.req_chat_history.append({"role": "user", "content": chat_input})
+                
+                with st.chat_message("assistant"):
+                    response = run_document_refiner(
+                        chat_history=st.session_state.req_chat_history[:-1],
+                        user_message=chat_input,
+                        project_folder=st.session_state.get("current_project", "default_project"),
+                        target_doc="prd_requirements.md",
+                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
+                        selected_model=selected_model,
+                        llm_engine=llm_engine,
+                        server_host=server_host
+                    )
+                st.session_state.req_chat_history.append({"role": "assistant", "content": response})
+                
+                # Reload document from disk to ensure UI is in sync
+                import os
+                from utils import get_docs_dir
+                doc_path = os.path.join(get_docs_dir(), "prd_requirements.md")
+                if os.path.exists(doc_path):
+                    with open(doc_path, "r", encoding="utf-8") as f:
+                        st.session_state.requirements_result = f.read()
+                        
+                st.rerun()
         
     with col_out:
         if generate_req_btn:
@@ -126,37 +168,6 @@ def render(selected_model, llm_engine, server_host):
                     st.toast("✅ Saved 'prd_requirements.md' to Shared Memory!")
                     st.rerun()
                     
-            # 💬 Chat & Refine Section (ReAct Agent)
-            st.markdown("---")
-            st.markdown("### 💬 Chat & Refine PRD Requirements")
-            
-            if "req_chat_history" not in st.session_state:
-                st.session_state.req_chat_history = []
-                
-            for msg in st.session_state.req_chat_history:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-                    
-            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_req")
-            if chat_input:
-                with st.chat_message("user"):
-                    st.markdown(chat_input)
-                st.session_state.req_chat_history.append({"role": "user", "content": chat_input})
-                
-                with st.chat_message("assistant"):
-                    response = run_document_refiner(
-                        chat_history=st.session_state.req_chat_history[:-1],
-                        user_message=chat_input,
-                        project_folder=st.session_state.get("current_project", "default_project"),
-                        target_doc="prd_requirements.md",
-                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
-                        selected_model=selected_model,
-                        llm_engine=llm_engine,
-                        server_host=server_host
-                    )
-                st.session_state.req_chat_history.append({"role": "assistant", "content": response})
-                st.rerun()
-                
         else:
             st.markdown("""
             <div class="empty-agent-state">

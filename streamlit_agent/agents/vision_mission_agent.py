@@ -31,45 +31,165 @@ def render(selected_model, llm_engine, server_host):
             generate_vm_btn = st.button("✨ Execute Vision & Mission Agent", key="btn_exec_vm")
             
         if st.session_state.vision_mission_result:
-            # 💬 Chat & Refine Section (ReAct Agent)
-            st.markdown("---")
-            st.markdown("### 💬 Chat & Refine Brand Identity")
+            # 💬 Floating Chat Refiner Popover (Ask Disha style, default bottom-left and draggable)
+            st.markdown("""
+            <style>
+            /* Position the popover container as fixed on the bottom-left of screen */
+            div[data-testid="stPopover"] {
+                position: fixed !important;
+                bottom: 30px !important;
+                left: 30px !important;
+                right: auto !important;
+                top: auto !important;
+                z-index: 999999 !important;
+            }
+            /* Style the button as a circular chat bubble */
+            div[data-testid="stPopover"] button {
+                border-radius: 50% !important;
+                width: 65px !important;
+                height: 65px !important;
+                font-size: 30px !important;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+                color: white !important;
+                border: none !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: transform 0.2s ease-in-out !important;
+                cursor: move !important;
+            }
+            div[data-testid="stPopover"] button:hover {
+                transform: scale(1.1) !important;
+                box-shadow: 0 10px 32px rgba(0,0,0,0.4) !important;
+            }
+            /* Hide the down arrow SVG icon inside the popover button */
+            div[data-testid="stPopover"] button svg {
+                display: none !important;
+            }
+            /* Adjust the floating popup window width/style */
+            div[data-testid="stPopoverBody"] {
+                width: 400px !important;
+                max-width: 90vw !important;
+                border-radius: 16px !important;
+                box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important;
+                border: 1px solid rgba(0, 0, 0, 0.1) !important;
+                background-color: #ffffff !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
             
-            chat_container = st.container(height=350)
-            with chat_container:
-                if "vm_chat_history" not in st.session_state:
-                    st.session_state.vm_chat_history = []
-                for msg in st.session_state.vm_chat_history:
-                    with st.chat_message(msg["role"]):
-                        st.markdown(msg["content"])
+            # Inject Draggable Javascript Helper
+            import streamlit.components.v1 as components
+            components.html("""
+            <script>
+            function initDraggable() {
+                const doc = window.parent.document;
+                const el = doc.querySelector('div[data-testid="stPopover"]');
+                if (!el) {
+                    setTimeout(initDraggable, 100);
+                    return;
+                }
+                
+                // Set initial positioning styles if not already set
+                if (!el.style.left || el.style.left === 'auto') {
+                    el.style.setProperty('position', 'fixed', 'important');
+                    el.style.setProperty('bottom', '30px', 'important');
+                    el.style.setProperty('left', '30px', 'important');
+                    el.style.setProperty('right', 'auto', 'important');
+                    el.style.setProperty('top', 'auto', 'important');
+                    el.style.setProperty('z-index', '999999', 'important');
+                }
+                
+                const button = el.querySelector('button');
+                if (!button) return;
+                
+                let isDragging = false;
+                let startX, startY;
+                let initialLeft, initialTop;
+                
+                button.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) return; // left click only
+                    isDragging = false;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    
+                    const rect = el.getBoundingClientRect();
+                    initialLeft = rect.left;
+                    initialTop = rect.top;
+                    
+                    function onMouseMove(moveEvent) {
+                        const dx = moveEvent.clientX - startX;
+                        const dy = moveEvent.clientY - startY;
+                        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                            isDragging = true;
+                        }
+                        if (isDragging) {
+                            el.style.setProperty('bottom', 'auto', 'important');
+                            el.style.setProperty('right', 'auto', 'important');
+                            el.style.setProperty('left', (initialLeft + dx) + 'px', 'important');
+                            el.style.setProperty('top', (initialTop + dy) + 'px', 'important');
+                        }
+                    }
+                    
+                    function onMouseUp(upEvent) {
+                        doc.removeEventListener('mousemove', onMouseMove);
+                        doc.removeEventListener('mouseup', onMouseUp);
+                    }
+                    
+                    doc.addEventListener('mousemove', onMouseMove);
+                    doc.addEventListener('mouseup', onMouseUp);
+                });
+                
+                button.addEventListener('click', (e) => {
+                    if (isDragging) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                }, true);
+            }
+            initDraggable();
+            </script>
+            """, height=0, width=0)
             
-            chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_vm")
-            if chat_input:
-                with st.chat_message("user"):
-                    st.markdown(chat_input)
-                st.session_state.vm_chat_history.append({"role": "user", "content": chat_input})
+            with st.popover("💬"):
+                st.markdown("<h3 style='margin-top:0;'>💬 Chat & Refine Brand Identity</h3>", unsafe_allow_html=True)
                 
-                with st.chat_message("assistant"):
-                    response = run_document_refiner(
-                        chat_history=st.session_state.vm_chat_history[:-1],
-                        user_message=chat_input,
-                        project_folder=st.session_state.get("current_project", "default_project"),
-                        target_doc="vision_mission.md",
-                        agent_system_prompt=CHAT_SYSTEM_PROMPT,
-                        selected_model=selected_model,
-                        llm_engine=llm_engine,
-                        server_host=server_host
-                    )
-                st.session_state.vm_chat_history.append({"role": "assistant", "content": response})
+                chat_container = st.container(height=350)
+                with chat_container:
+                    if "vm_chat_history" not in st.session_state:
+                        st.session_state.vm_chat_history = []
+                    for msg in st.session_state.vm_chat_history:
+                        with st.chat_message(msg["role"]):
+                            st.markdown(msg["content"])
                 
-                # Reload document from disk to ensure UI is in sync
-                from utils import get_docs_dir
-                doc_path = os.path.join(get_docs_dir(), "vision_mission.md")
-                if os.path.exists(doc_path):
-                    with open(doc_path, "r", encoding="utf-8") as f:
-                        st.session_state.vision_mission_result = f.read()
-                        
-                st.rerun()
+                chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_vm")
+                if chat_input:
+                    with st.chat_message("user"):
+                        st.markdown(chat_input)
+                    st.session_state.vm_chat_history.append({"role": "user", "content": chat_input})
+                    
+                    with st.chat_message("assistant"):
+                        response = run_document_refiner(
+                            chat_history=st.session_state.vm_chat_history[:-1],
+                            user_message=chat_input,
+                            project_folder=st.session_state.get("current_project", "default_project"),
+                            target_doc="vision_mission.md",
+                            agent_system_prompt=CHAT_SYSTEM_PROMPT,
+                            selected_model=selected_model,
+                            llm_engine=llm_engine,
+                            server_host=server_host
+                        )
+                    st.session_state.vm_chat_history.append({"role": "assistant", "content": response})
+                    
+                    # Reload document from disk to ensure UI is in sync
+                    from utils import get_docs_dir
+                    doc_path = os.path.join(get_docs_dir(), "vision_mission.md")
+                    if os.path.exists(doc_path):
+                        with open(doc_path, "r", encoding="utf-8") as f:
+                            st.session_state.vision_mission_result = f.read()
+                            
+                    st.rerun()
         
     with col_out:
         if generate_vm_btn:

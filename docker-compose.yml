@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: agents/dashboard/Dockerfile
+    container_name: ideatoindia-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  vision_mission:
+    build:
+      context: .
+      dockerfile: agents/1_vision_mission/Dockerfile
+    container_name: ideatoindia-vision-mission
+    ports:
+      - "8502:8502"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  research:
+    build:
+      context: .
+      dockerfile: agents/2_research/Dockerfile
+    container_name: ideatoindia-research
+    ports:
+      - "8503:8503"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  requirements:
+    build:
+      context: .
+      dockerfile: agents/3_requirements/Dockerfile
+    container_name: ideatoindia-requirements
+    ports:
+      - "8504:8504"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  planning:
+    build:
+      context: .
+      dockerfile: agents/4_planning/Dockerfile
+    container_name: ideatoindia-planning
+    ports:
+      - "8505:8505"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  architecture:
+    build:
+      context: .
+      dockerfile: agents/5_architecture/Dockerfile
+    container_name: ideatoindia-architecture
+    ports:
+      - "8506:8506"
+    volumes:
+      - ./streamlit_agent/documents:/app/documents
+    environment:
+      - CURRENT_PROJECT=default_project
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+

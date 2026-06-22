@@ -28,9 +28,12 @@ Using the provided business idea and optional context, you will produce EXACTLY 
 
 Provide realistic, market-specific details. Focus on actionable insights rather than broad generalities."""
 
-def check_handoff_status() -> bool:
-    """Returns True if the required prior vision_mission.md exists."""
-    return os.path.exists(os.path.join(get_docs_dir(), "vision_mission.md"))
+def check_handoff_status() -> tuple:
+    """Returns (status_class, status_text) based on prior files existence."""
+    if os.path.exists(os.path.join(get_docs_dir(), "vision_mission.md")):
+        return "handoff-active", "🟢 <strong>Handoff Active:</strong> Successfully loaded vision_mission.md from Shared Memory!"
+    else:
+        return "handoff-pending", "⚠️ <strong>Handoff Pending:</strong> No prior files detected. Run Vision & Mission agent first for aligned research scope."
 
 def generate_prompt(shared_idea: str, competitors: str = "", region: str = "", market_details: str = "") -> str:
     """Builds the user prompt incorporating shared memory context and inputs."""

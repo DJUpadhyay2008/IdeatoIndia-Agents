@@ -33,9 +33,12 @@ Describe the system architecture (e.g., client-server, microservices, serverless
 
 Focus on cost-efficiency for the initial version while ensuring the path to scale is clear."""
 
-def check_handoff_status() -> bool:
-    """Returns True if the required prior prd_requirements.md exists."""
-    return os.path.exists(os.path.join(get_docs_dir(), "prd_requirements.md"))
+def check_handoff_status() -> tuple:
+    """Returns (status_class, status_text) based on prior files existence."""
+    if os.path.exists(os.path.join(get_docs_dir(), "prd_requirements.md")):
+        return "handoff-active", "🟢 <strong>Handoff Active:</strong> Successfully loaded prd_requirements.md from Shared Memory!"
+    else:
+        return "handoff-pending", "⚠️ <strong>Handoff Pending:</strong> No prior files detected. Run Requirements agent first for aligned architecture scope."
 
 def generate_prompt(shared_idea: str, tech_pref: str = "", scale: str = "", compliance: str = "") -> str:
     """Builds the user prompt incorporating shared memory context and inputs."""

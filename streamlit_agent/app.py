@@ -1,3 +1,4 @@
+# Reload trigger comment
 import streamlit as st
 import os
 import requests
@@ -60,7 +61,7 @@ preset = st.session_state.theme_preset
 txt_color_raw = st.session_state.text_color_choice
 font_scale = st.session_state.font_size_choice
 
-# Defaults
+# Defaults (Slate & Sky (Light))
 bg_app = "#f8fafc"
 bg_app_image = "radial-gradient(circle at 50% 30%, #f0fdf4 0%, #e0f2fe 50%, #fffbeb 100%)"
 bg_card = "#ffffff"
@@ -69,6 +70,18 @@ border_top_card = "#0ea5e9"
 bg_sidebar = "#f8fafc"
 border_sidebar = "#e2e8f0"
 text_sidebar = "#1e293b"
+
+bg_tabs = "rgba(255, 255, 255, 0.6)"
+border_tabs = "rgba(226, 232, 240, 0.8)"
+text_tabs_inactive = "#475569"
+bg_tabs_active = "#0ea5e9"
+text_tabs_active = "#ffffff"
+hover_tabs = "rgba(14, 165, 233, 0.08)"
+border_output_card = "#10b981"
+bg_glass_card = "rgba(255, 255, 255, 0.45)"
+border_glass_card = "rgba(255, 255, 255, 0.6)"
+shadow_glass_card = "0 8px 32px 0 rgba(14, 165, 233, 0.08)"
+backdrop_blur = "blur(12px) saturate(180%)"
 
 # Accessibility helper variables
 color_output_header = "#065f46" # Emerald green default
@@ -106,6 +119,19 @@ if preset == "Pure High Contrast (Light)":
     bg_handoff_active = "#ffffff"
     border_handoff_active = "#000000"
     color_handoff_active = "#000000"
+    
+    bg_tabs = "#ffffff"
+    border_tabs = "#000000"
+    text_tabs_inactive = "#000000"
+    bg_tabs_active = "#000000"
+    text_tabs_active = "#ffffff"
+    hover_tabs = "#f1f5f9"
+    border_output_card = "#000000"
+    
+    bg_glass_card = "#ffffff"
+    border_glass_card = "#000000"
+    shadow_glass_card = "none"
+    backdrop_blur = "none"
 elif preset == "Midnight Dark (Dark)":
     bg_app = "#0f172a"
     bg_app_image = "radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 100%)"
@@ -126,6 +152,19 @@ elif preset == "Midnight Dark (Dark)":
     bg_handoff_active = "rgba(16, 185, 129, 0.15)"
     border_handoff_active = "rgba(16, 185, 129, 0.35)"
     color_handoff_active = "#34d399"
+    
+    bg_tabs = "rgba(30, 41, 59, 0.6)"
+    border_tabs = "rgba(51, 65, 85, 0.8)"
+    text_tabs_inactive = "#94a3b8"
+    bg_tabs_active = "#38bdf8"
+    text_tabs_active = "#0f172a"
+    hover_tabs = "rgba(56, 189, 248, 0.1)"
+    border_output_card = "#34d399"
+    
+    bg_glass_card = "rgba(30, 41, 59, 0.45)"
+    border_glass_card = "rgba(255, 255, 255, 0.08)"
+    shadow_glass_card = "0 8px 32px 0 rgba(0, 0, 0, 0.25)"
+    backdrop_blur = "blur(12px) saturate(180%)"
 elif preset == "Emerald Mint (Light)":
     bg_app = "#f0fdf4"
     bg_app_image = "radial-gradient(circle at 50% 30%, #ecfdf5 0%, #d1fae5 100%)"
@@ -146,6 +185,19 @@ elif preset == "Emerald Mint (Light)":
     bg_handoff_active = "#f0fdf4"
     border_handoff_active = "#a7f3d0"
     color_handoff_active = "#047857"
+    
+    bg_tabs = "rgba(240, 253, 244, 0.6)"
+    border_tabs = "rgba(167, 243, 208, 0.8)"
+    text_tabs_inactive = "#065f46"
+    bg_tabs_active = "#10b981"
+    text_tabs_active = "#ffffff"
+    hover_tabs = "rgba(16, 185, 129, 0.08)"
+    border_output_card = "#059669"
+    
+    bg_glass_card = "rgba(255, 255, 255, 0.5)"
+    border_glass_card = "rgba(255, 255, 255, 0.7)"
+    shadow_glass_card = "0 8px 32px 0 rgba(16, 185, 129, 0.06)"
+    backdrop_blur = "blur(12px) saturate(180%)"
 
 # Resolve text color selection
 if "Charcoal" in txt_color_raw:
@@ -233,11 +285,14 @@ html, body {{
 /* Sidebar code block readability styling */
 [data-testid="stSidebar"] code,
 [data-testid="stSidebar"] pre {{
-    color: #0f172a !important; /* slate-900 */
-    background-color: #e2e8f0 !important; /* slate-200 */
-    border: 1px solid #cbd5e1 !important;
+    color: {color_code} !important;
+    background-color: {bg_code} !important;
+    border: 1px solid {border_sidebar} !important;
     font-weight: 600 !important;
     font-size: 0.82rem !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-x: auto !important;
 }}
 
 /* ── Input boxes (Clean white with sky-blue focus) ── */
@@ -330,18 +385,22 @@ input::placeholder, textarea::placeholder {{
     line-height: 1.6;
 }}
 
-/* ── Tactile Raised Cards ── */
+/* ── Glassmorphic Elevated Cards ── */
 .stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] {{
-    background-color: {bg_card} !important;
-    background: {bg_card} !important;
-    border: 1px solid {border_card} !important;
-    border-top: 2px solid {border_top_card} !important;
-    border-radius: 16px !important;
-    box-shadow: 
-        0 10px 15px -3px rgba(0,0,0,0.05),
-        0 4px 6px -2px rgba(0,0,0,0.02) !important;
+    background: {bg_glass_card} !important;
+    background-color: {bg_glass_card} !important;
+    border: 1px solid {border_glass_card} !important;
+    backdrop-filter: {backdrop_blur} !important;
+    -webkit-backdrop-filter: {backdrop_blur} !important;
+    border-radius: 12px !important;
+    box-shadow: {shadow_glass_card} !important;
     padding: 1.75rem !important;
     margin-bottom: 1.5rem !important;
+}}
+
+/* Special override for Column 2 output card to have a top accent border */
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] {{
+    border-top: 4px solid {border_output_card} !important;
 }}
 
 /* Reset the inner wrapper to prevent double borders & double padding */
@@ -352,80 +411,59 @@ input::placeholder, textarea::placeholder {{
     box-shadow: none !important;
 }}
 
-/* Set text sizes based on scale choice (excluding inputs and layout wrappers) */
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] p,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] li,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] span {{
+/* Set text sizes based on scale choice */
+.stAppViewMain p,
+.stAppViewMain li,
+.stAppViewMain span {{
     font-size: {font_size_base} !important;
 }}
 
-/* ── Clean Bright Output Sheet ── */
-.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] {{
-    background-color: {bg_card} !important;
-    background: {bg_card} !important;
-    border: 2px solid #059669 !important; /* emerald-600 */
-    border-top: 4px solid #059669 !important;
-    border-radius: 16px !important;
-    box-shadow: 
-        0 20px 25px -5px rgba(16, 185, 129, 0.08),
-        0 10px 10px -5px rgba(16, 185, 129, 0.04) !important;
-    padding: 2.2rem !important;
-}}
-
-/* Ensure the output inner wrapper doesn't get the emerald border */
-.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] [class*="e1f1d6gn1"] {{
-    border: none !important;
-    padding: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-}}
-
-/* Re-color text elements on output card explicitly to solve Firefox theme clash (avoiding input fields/buttons) */
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] p,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] span,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] li,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] strong,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] em,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] blockquote,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] td,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] th,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] a,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] ul,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] ol {{
+/* Re-color text elements on output card explicitly to solve Firefox theme clash */
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] p,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] span,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] li,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] strong,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] em,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] blockquote,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] td,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] th,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] a,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] ul,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] ol {{
     color: {color_text} !important;
 }}
 
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h1,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h2,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h3,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h4,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h5,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] h6,
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] strong {{
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h1,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h2,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h3,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h4,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h5,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] h6,
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] strong {{
     color: {color_output_header} !important;
     font-family: 'Playfair Display', serif !important;
 }}
 
-/* Code block customization inside containers */
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] code {{
+/* Code block customization inside output card */
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] code {{
     background-color: {bg_code} !important;
     color: {color_code} !important;
     padding: 0.2rem 0.4rem !important;
     border-radius: 4px !important;
     font-family: monospace !important;
 }}
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] pre {{
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] pre {{
     background-color: {bg_code} !important;
     border: 1px solid {border_card} !important;
     padding: 1rem !important;
     border-radius: 8px !important;
 }}
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] pre code {{
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] pre code {{
     background-color: transparent !important;
     padding: 0 !important;
 }}
 
-.stAppViewMain div[data-testid="stVerticalBlockBorderWrapper"] hr {{
+.stAppViewMain div[data-testid="column"]:nth-of-type(2) div[data-testid="stVerticalBlockBorderWrapper"] hr {{
     border-color: rgba(16, 185, 129, 0.15) !important;
 }}
 
@@ -475,54 +513,52 @@ input::placeholder, textarea::placeholder {{
     transform: translateY(1px) !important;
 }}
 
-/* ── Physical Folder Tabs (Sky Blue Theme - Firefox & Chrome compatible) ── */
+/* ── Modern Navigation Tabs ── */
 div[data-testid="stTabs"] {{
-    background-color: #f1f5f9 !important; /* slate-100 */
-    border-radius: 12px 12px 0 0 !important;
-    padding: 0.5rem 0.5rem 0 0.5rem !important;
-    border: 1px solid #cbd5e1 !important;
-    border-bottom: none !important;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
-    gap: 4px !important;
+    background: {bg_tabs} !important;
+    backdrop-filter: blur(12px) !important;
+    border-radius: 14px !important;
+    padding: 6px !important;
+    border: 1px solid {border_tabs} !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    display: flex !important;
+    gap: 8px !important;
 }}
 button[role="tab"] {{
     -moz-appearance: none !important;
     -webkit-appearance: none !important;
-    background: #e2e8f0 !important; /* slate-200 */
-    border: 1px solid #cbd5e1 !important;
-    border-bottom: none !important;
-    border-radius: 8px 8px 0 0 !important;
-    padding: 0.6rem 1.2rem !important;
-    transition: all 0.2s ease !important;
-    margin-bottom: -1px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 16px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin-bottom: 0 !important;
 }}
 button[role="tab"] p,
 button[role="tab"] span,
 button[role="tab"] div,
 button[role="tab"] {{
-    color: #475569 !important; /* slate-600 */
+    color: {text_tabs_inactive} !important;
     font-weight: 600 !important;
-    font-size: 0.85rem !important;
+    font-size: 0.9rem !important;
 }}
 button[role="tab"]:hover p,
 button[role="tab"]:hover span,
 button[role="tab"]:hover div,
 button[role="tab"]:hover {{
-    background: #e2e8f0 !important;
-    color: #0f172a !important; /* slate-900 */
+    background: {hover_tabs} !important;
+    color: {bg_tabs_active} !important;
 }}
 button[role="tab"][aria-selected="true"] {{
-    background: #ffffff !important;
-    border-top: 3px solid #0369a1 !important; /* Sky 700 */
-    border-bottom: 2px solid #ffffff !important;
-    box-shadow: 0px -4px 12px rgba(14, 165, 233, 0.1) !important;
+    background: {bg_tabs_active} !important;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25) !important;
 }}
 button[role="tab"][aria-selected="true"] p,
 button[role="tab"][aria-selected="true"] span,
 button[role="tab"][aria-selected="true"] div,
 button[role="tab"][aria-selected="true"] {{
-    color: #0369a1 !important; /* Sky 700 */
-    font-weight: 800 !important;
+    color: {text_tabs_active} !important;
+    font-weight: 700 !important;
 }}
 
 /* Remove default focus ring in Firefox */
@@ -564,6 +600,95 @@ button::-moz-focus-inner {{
 .chat-bubble.bot,
 .chat-bubble.bot * {{
     color: #1e293b !important;
+}}
+
+/* ── Streamlit native st.chat_message styling overrides ── */
+[data-testid="stChatMessage"] {{
+    padding: 1rem 1.2rem !important;
+    border-radius: 16px !important;
+    margin-bottom: 1.2rem !important;
+    line-height: 1.65 !important;
+    background-color: transparent !important;
+}}
+
+/* User chat bubble */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+    border: 1px solid #0284c7 !important;
+    box-shadow: 
+        0 4px 10px rgba(14, 165, 233, 0.2),
+        inset 0 1px 0 rgba(255,255,255,0.3) !important;
+    border-bottom-right-radius: 4px !important;
+}}
+
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) span,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) li,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) strong,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) em,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) a,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) div {{
+    color: #ffffff !important;
+}}
+
+/* Assistant/Bot chat bubble */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
+    background: {bg_card} !important;
+    border: 1.5px solid {border_card} !important;
+    border-left: 4px solid #059669 !important; /* emerald-600 */
+    box-shadow: 
+        0px 4px 12px rgba(0,0,0,0.03),
+        inset 1px 1px 0px rgba(255,255,255,1) !important;
+    border-bottom-left-radius: 4px !important;
+}}
+
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) p,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) span,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) li,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) strong,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) em,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) a,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) div {{
+    color: {color_text} !important;
+}}
+
+/* Code blocks in chat */
+[data-testid="stChatMessage"] code {{
+    background-color: {bg_code} !important;
+    color: {color_code} !important;
+    padding: 0.15rem 0.3rem !important;
+    border-radius: 4px !important;
+    font-family: monospace !important;
+}}
+[data-testid="stChatMessage"] pre {{
+    background-color: {bg_code} !important;
+    border: 1px solid {border_card} !important;
+    padding: 0.8rem !important;
+    border-radius: 8px !important;
+}}
+[data-testid="stChatMessage"] pre code {{
+    background-color: transparent !important;
+    padding: 0 !important;
+}}
+
+/* Chat input field alignment & theme matching */
+[data-testid="stChatInput"] {{
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}}
+[data-testid="stChatInput"] textarea {{
+    color: #0f172a !important; /* slate-900 */
+    background-color: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}}
+[data-testid="stChatInput"] textarea:focus {{
+    border-color: #0ea5e9 !important;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.25) !important;
+    outline: none !important;
 }}
 
 /* ── Thinking dots micro-animation ── */
@@ -1007,8 +1132,8 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🎯 Vision & Mission Agent",
     "🔍 Research & Discovery Agent",
     "📋 Requirements Agent",
-    "📅 Planning Agent",
     "🏗️ Architecture Agent",
+    "📅 Planning Agent",
     "💬 Harness Chat & Q&A"
 ])
 
@@ -1025,10 +1150,10 @@ with tab3:
     requirements_agent.render(selected_model, llm_engine, server_host)
 
 with tab4:
-    planning_agent.render(selected_model, llm_engine, server_host)
+    architecture_agent.render(selected_model, llm_engine, server_host)
 
 with tab5:
-    architecture_agent.render(selected_model, llm_engine, server_host)
+    planning_agent.render(selected_model, llm_engine, server_host)
 
 # ---------------------------------------------------------------
 # Tab 6: Harness Chat & Q&A (Interaction with Shared Memory)
@@ -1039,46 +1164,44 @@ with tab6:
         st.markdown('<div class="chat-helper-text">Ask questions, test assumptions, or refine your strategy using all files stored in your Shared Memory.</div>', unsafe_allow_html=True)
 
 
-    chat_container = st.container()
-
-    with st.form(key="harness_chat_form", clear_on_submit=True):
-        chat_input = st.text_input("Ask advisor...", placeholder="e.g. How does our architecture align with the security requirements in constraints.txt?", key="chat_user_msg")
-        send_chat = st.form_submit_button("Send to Advisor")
-
-    if send_chat and chat_input.strip():
-        st.session_state.chat_history.append({"role": "user", "content": chat_input.strip()})
-        
-        with chat_container:
-            st.markdown(f'<div class="chat-bubble user">{chat_input.strip()}</div>', unsafe_allow_html=True)
-            
-        placeholder = st.empty()
-        bot_reply = ""
-        
-        memory_ctx = load_shared_memory()
-        
-        chat_messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
-        if memory_ctx:
-            chat_messages.append({"role": "system", "content": f"Here is the contents of the Shared Memory folder for your reference:\n{memory_ctx}"})
-        if st.session_state.shared_idea.strip():
-            chat_messages.append({"role": "system", "content": f"The core startup idea is: {st.session_state.shared_idea.strip()}"})
-            
-        chat_messages.extend(st.session_state.chat_history)
-        
-        try:
-            for chunk in stream_chat(chat_messages, selected_model, llm_engine, server_host):
-                bot_reply += chunk
-                placeholder.markdown(f'<div class="chat-bubble bot">{bot_reply}</div>', unsafe_allow_html=True)
-            
-            st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
-        except Exception as e:
-            placeholder.markdown(f'<div class="chat-bubble bot" style="color:red;">❗ Error: {e}</div>', unsafe_allow_html=True)
-            
-        st.rerun()
-
-    with chat_container:
+    chat_history_container = st.container(height=500)
+    
+    with chat_history_container:
         for msg in st.session_state.chat_history:
-            bubble_class = "user" if msg["role"] == "user" else "bot"
-            st.markdown(f'<div class="chat-bubble {bubble_class}">{msg["content"]}</div>', unsafe_allow_html=True)
+            role = "user" if msg["role"] == "user" else "assistant"
+            with st.chat_message(role):
+                st.markdown(msg["content"])
+
+    chat_input = st.chat_input("Ask advisor...", key="harness_chat_input")
+
+    if chat_input:
+        st.session_state.chat_history.append({"role": "user", "content": chat_input.strip()})
+        with chat_history_container:
+            with st.chat_message("user"):
+                st.markdown(chat_input.strip())
+            
+            with st.chat_message("assistant"):
+                placeholder = st.empty()
+                bot_reply = ""
+                
+                memory_ctx = load_shared_memory()
+                
+                chat_messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+                if memory_ctx:
+                    chat_messages.append({"role": "system", "content": f"Here is the contents of the Shared Memory folder for your reference:\n{memory_ctx}"})
+                if st.session_state.shared_idea.strip():
+                    chat_messages.append({"role": "system", "content": f"The core startup idea is: {st.session_state.shared_idea.strip()}"})
+                    
+                chat_messages.extend(st.session_state.chat_history)
+                
+                try:
+                    for chunk in stream_chat(chat_messages, selected_model, llm_engine, server_host):
+                        bot_reply += chunk
+                        placeholder.markdown(bot_reply)
+                    st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
+                except Exception as e:
+                    placeholder.markdown(f"❗ Error: {e}")
+        st.rerun()
 
 # ---------------------------------------------------------------
 # Footer

@@ -4,9 +4,10 @@ from typing import Annotated, Sequence, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_core.language_models.chat_models import BaseChatModel
-from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
+from langchain.agents import create_agent
+from langchain.agents.middleware import ModelRetryMiddleware, ToolRetryMiddleware, SummarizationMiddleware
+from langchain_google_genai import ChatGoogleGenerativeAI
 import streamlit as st
 
 # Import utils
@@ -25,7 +26,7 @@ class AgentState(TypedDict):
 def get_chat_model(selected_model: str, llm_engine: str, server_host: str) -> BaseChatModel:
     """Instantiates the correct LangChain chat model wrapper based on settings."""
     if llm_engine == "Google Gemini API":
-        from langchain_google_genai import ChatGoogleGenerativeAI
+       
         try:
             api_key = st.session_state.get("gemini_api_key", "").strip()
         except Exception:
@@ -49,7 +50,7 @@ def get_chat_model(selected_model: str, llm_engine: str, server_host: str) -> Ba
             temperature=0.2
         )
     else:  # llama.cpp
-        from langchain_community.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=selected_model,
             openai_api_key="pct",  # dummy key
@@ -84,18 +85,6 @@ def build_document_tools(project_folder: str, target_doc: str):
         """Overwrites or updates the active document with new content. Use this to apply edits requested by the user."""
         try:
             save_document(target_doc, content)
-            # Update session state if running inside Streamlit
-            var_map = {
-                "vision_mission.md": "vision_mission_result",
-                "market_research.md": "research_result",
-                "prd_requirements.md": "requirements_result",
-                "launch_plan.md": "planning_result",
-                "technical_architecture.md": "architecture_result"
-            }
-            if target_doc in var_map:
-                state_var = var_map[target_doc]
-                if state_var in st.session_state:
-                    st.session_state[state_var] = content
             return f"Successfully updated '{target_doc}' with new content."
         except Exception as e:
             return f"Error writing document: {e}"
@@ -145,38 +134,35 @@ def run_document_refiner(
     Compiles and runs a LangGraph ReAct Agent to discuss and modify a document.
     Streams output back or returns the final response.
     """
-    # 1. Resolve model and bind tools
+    # Explicitly set the active project in the environment for tool-execution threads
+    os.environ["CURRENT_PROJECT"] = project_folder
+
+    # 1. Resolve model and build tools
     chat_model = get_chat_model(selected_model, llm_engine, server_host)
     tools = build_document_tools(project_folder, target_doc)
-    model_with_tools = chat_model.bind_tools(tools)
 
-    # 2. Define conditional router edge
-    def should_continue(state: AgentState):
-        messages = state["messages"]
-        last_message = messages[-1]
-        # If model called a tool, transition to 'tools' node
-        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            return "tools"
-        return END
+    # Append strict tool enforcement rules to the system prompt
+    enforced_system_prompt = (
+        f"{agent_system_prompt}\n\n"
+        "=== CRITICAL INSTRUCTIONS FOR TOOL USAGE ===\n"
+        f"1. To apply any edits, updates, rewrites, or translations to '{target_doc}', you MUST call the `write_document` tool.\n"
+        "2. Do NOT just output the updated text in your message or claim you have updated the file without calling the tool.\n"
+        "3. You must execute the `write_document` tool to make your changes persistent.\n"
+        "4. Always call `read_current_document` first if you need to know the current state before updating.\n"
+        "============================================"
+    )
 
-    # 3. Define agent execution node
-    def call_agent(state: AgentState):
-        messages = state["messages"]
-        # Ensure system prompt is first message
-        sys_msg = SystemMessage(content=agent_system_prompt)
-        response = model_with_tools.invoke([sys_msg] + messages)
-        return {"messages": [response]}
-
-    # 4. Compile workflow graph
-    workflow = StateGraph(AgentState)
-    workflow.add_node("agent", call_agent)
-    workflow.add_node("tools", ToolNode(tools))
-
-    workflow.set_entry_point("agent")
-    workflow.add_conditional_edges("agent", should_continue)
-    workflow.add_edge("tools", "agent")
-
-    graph = workflow.compile()
+    # 2. Compile agent using create_agent from langchain.agents with middleware
+    graph = create_agent(
+        model=chat_model,
+        tools=tools,
+        system_prompt=enforced_system_prompt,
+        middleware=[
+            ModelRetryMiddleware(max_retries=3),
+            ToolRetryMiddleware(max_retries=2),
+            SummarizationMiddleware(model=chat_model, trigger=("messages", 20), keep=("messages", 10))
+        ]
+    )
 
     # 5. Convert standard chat history to LangChain Message format
     lc_messages = []
@@ -200,19 +186,37 @@ def run_document_refiner(
     status_placeholder.markdown("*Agent thinking...*")
     
     # Run graph stream
-    for output in graph.stream(inputs, config={"recursion_limit": 20}):
-        # Event structure is a dict mapping node_name -> state update
-        for node_name, state_update in output.items():
-            if node_name == "agent":
-                # Print/render new agent message content
-                new_msg = state_update["messages"][-1]
-                if isinstance(new_msg, AIMessage) and new_msg.content:
-                    full_response = new_msg.content
-                    response_placeholder.markdown(full_response)
-            elif node_name == "tools":
-                # Let user know what tool is running
-                tool_msg = state_update["messages"][-1]
-                status_placeholder.markdown(f"🛠️ *Executing Action:* {tool_msg.name}")
-                
+    with open("agent_debug.log", "a", encoding="utf-8") as log_file:
+        log_file.write(f"--- START GRAPH RUN: target_doc={target_doc} ---\n")
+        try:
+            for output in graph.stream(inputs, config={"recursion_limit": 20}):
+                log_file.write(f"Graph yield output keys: {list(output.keys())}\n")
+                for node_name, state_update in output.items():
+                    log_file.write(f"Node: {node_name}\n")
+                    if state_update and "messages" in state_update:
+                        new_msg = state_update["messages"][-1]
+                        log_file.write(f"  Msg type: {type(new_msg).__name__}\n")
+                        log_file.write(f"  Msg content: {repr(new_msg.content)}\n")
+                        if hasattr(new_msg, "tool_calls"):
+                            log_file.write(f"  Tool calls: {repr(new_msg.tool_calls)}\n")
+                        
+                        if node_name in ("agent", "model"):
+                            if isinstance(new_msg, AIMessage) and new_msg.content:
+                                full_response = new_msg.content
+                                response_placeholder.markdown(full_response)
+                            elif not isinstance(new_msg, AIMessage):
+                                log_file.write(f"  WARNING: msg is not AIMessage\n")
+                    else:
+                        log_file.write(f"  No messages in state_update\n")
+                    
+                    if state_update and node_name == "tools" and "messages" in state_update:
+                        tool_msg = state_update["messages"][-1]
+                        status_placeholder.markdown(f"🛠️ *Executing Action:* {tool_msg.name}")
+        except Exception as err:
+            log_file.write(f"EXCEPTION DURING RUN: {err}\n")
+            import traceback
+            traceback.print_exc(file=log_file)
+            raise err
+        log_file.write(f"--- END GRAPH RUN: full_response length={len(full_response)} ---\n")
     status_placeholder.empty()
     return full_response

@@ -25,3 +25,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+# Neo4j
+shared_memory/neo4j/data/
+shared_memory/neo4j/logs/
+shared_memory/neo4j/import/
+shared_memory/neo4j/plugins/

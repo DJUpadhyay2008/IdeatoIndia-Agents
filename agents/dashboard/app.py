@@ -18,6 +18,8 @@ from common import (
     stream_chat,
     get_default_llm_host,
     get_default_ollama_host,
+    inject_premium_ui,
+    render_premium_header_config,
 )
 
 # Initialize shared documents directory
@@ -29,6 +31,9 @@ st.set_page_config(
     page_icon="🇮🇳",
     layout="wide",
 )
+
+# Inject Premium UI & Steps Progress Tracker
+inject_premium_ui(0)
 
 # ---------------------------------------------------------------
 # Session State Initialization
@@ -60,126 +65,72 @@ def load_project_state():
 if "shared_idea" not in st.session_state or not st.session_state.shared_idea:
     load_project_state()
 
-# ---------------------------------------------------------------
-# Style Injection
-# ---------------------------------------------------------------
+# Extra Dashboard CSS Overrides
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
-
-html, body, p, span, label, input, textarea, select, button, div, li, a {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-}
-
 /* Pipeline visualization card */
 .pipeline-step {
-    border-left: 5px solid #cbd5e1;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    background-color: #ffffff;
-    border-radius: 4px 12px 12px 4px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    transition: all 0.2s ease;
+    border-left: 4px solid #E5E7EB;
+    padding: 14px;
+    margin-bottom: 12px;
+    background-color: #FFFFFF;
+    border-radius: 4px 10px 10px 4px;
+    border: 1px solid #E5E7EB;
+    border-left-width: 4px;
+    transition: all 0.15s ease;
 }
 .pipeline-step.complete {
-    border-left-color: #10b981;
+    border-left-color: #10B981;
 }
 .pipeline-step.ready {
-    border-left-color: #f59e0b;
+    border-left-color: #F59E0B;
 }
 .pipeline-step.pending {
-    border-left-color: #cbd5e1;
+    border-left-color: #E5E7EB;
     opacity: 0.65;
 }
 
 .step-badge {
     display: inline-block;
-    padding: 0.25rem 0.5rem;
+    padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    font-weight: 600;
     text-transform: uppercase;
 }
 .step-badge.complete {
-    background-color: #d1fae5;
-    color: #065f46;
+    background-color: #D1FAE5;
+    color: #065F46;
 }
 .step-badge.ready {
-    background-color: #fef3c7;
-    color: #92400e;
+    background-color: #FEF3C7;
+    color: #92400E;
 }
 .step-badge.pending {
-    background-color: #f1f5f9;
-    color: #475569;
+    background-color: #F3F4F6;
+    color: #4B5563;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# Hero Banner
+# Hero Section
 # ---------------------------------------------------------------
 st.markdown("""
-<div style="background: radial-gradient(circle at 50% 30%, #f0fdf4 0%, #e0f2fe 50%, #fffbeb 100%); padding: 2.5rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 2rem; text-align: center;">
-    <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #0284c7; margin-bottom: 0.5rem;">🇮🇳 Multi-Agent Startup Orchestrator</div>
-    <div style="font-size: 2.4rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif;">Strategy Agent Dashboard</div>
-    <div style="color: #475569; font-size: 0.98rem; max-width: 650px; margin: 0 auto; line-height: 1.6;">
-        Coordinate requirements, system designs, market audits, and launch plans across your modular strategy microservices.
+<div class="hero-card">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span class="status-badge status-badge-ready">🟢 Cockpit Orchestrator</span>
+        <span style="font-size: 0.8rem; color: #6B7280; font-weight: 500;">Multi-Agent Startup Cockpit</span>
     </div>
+    <div class="hero-title">IdeaToIndia Strategy Dashboard</div>
+    <div class="hero-subtitle">Coordinate requirements, system designs, market audits, and launch plans across your modular strategy microservices.</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# Sidebar
+# Header Configuration
 # ---------------------------------------------------------------
-st.sidebar.markdown('### 📁 Active Project Workspace')
-projects = list_projects()
-try:
-    proj_index = projects.index(st.session_state.current_project)
-except ValueError:
-    proj_index = 0
-
-selected_proj = st.sidebar.selectbox("Project Folder", projects, index=proj_index)
-if selected_proj != st.session_state.current_project:
-    st.session_state.current_project = selected_proj
-    load_project_state()
-    st.rerun()
-
-st.sidebar.markdown('---')
-st.sidebar.markdown('### ⚙️ Engine Configurations')
-llm_engine = st.sidebar.selectbox("LLM Engine", ["Ollama", "llama.cpp (llama-server)", "Google Gemini API"], index=1)
-
-if llm_engine == "Ollama":
-    selected_model = "gemma4:e2b"
-    server_host = st.sidebar.text_input("Ollama Host URL", value=get_default_ollama_host())
-elif llm_engine == "Google Gemini API":
-    gemini_api_key = st.sidebar.text_input("Google Gemini API Key", type="password", value=st.session_state.get("gemini_api_key", ""))
-    st.session_state.gemini_api_key = gemini_api_key
-    selected_model = st.sidebar.selectbox(
-        "Active AI Model", 
-        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"],
-        index=0
-    )
-    server_host = ""
-else:
-    selected_model = "gemma4"
-    server_host = st.sidebar.text_input("llama.cpp Host URL", value=get_default_llm_host())
-
-st.sidebar.markdown('---')
-st.sidebar.markdown('### 📁 Shared Memory (Documents)')
-files = os.listdir(get_docs_dir())
-if not files:
-    st.sidebar.info("Shared memory is empty.")
-else:
-    for file in sorted(files):
-        with st.sidebar.expander(f"📄 {file}", expanded=False):
-            path = os.path.join(get_docs_dir(), file)
-            ext = os.path.splitext(file)[1].lower()
-            if ext in ['.txt', '.md', '.json']:
-                try:
-                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                        st.text(f.read()[:500] + ("..." if len(f.read()) > 500 else ""))
-                except Exception as e:
-                    st.error(f"Error: {e}")
+selected_model, llm_engine, server_host = render_premium_header_config(0)
 
 # ---------------------------------------------------------------
 # Main Layout

@@ -17,6 +17,8 @@ from common import (
     get_project_name_from_idea,
     get_default_llm_host,
     get_default_ollama_host,
+    inject_premium_ui,
+    render_premium_header_config,
 )
 import agent
 
@@ -29,6 +31,9 @@ st.set_page_config(
     page_icon="🔍",
     layout="wide",
 )
+
+# Inject Premium UI & Steps Progress Tracker
+inject_premium_ui(2)
 
 # ---------------------------------------------------------------
 # Session State Initialization
@@ -65,93 +70,48 @@ if "research_result" not in st.session_state or not st.session_state.research_re
     load_project_state()
 
 # ---------------------------------------------------------------
-# Hero Banner
+# Hero Section
 # ---------------------------------------------------------------
 st.markdown("""
-<div style="background: radial-gradient(circle at 50% 30%, #f0fdfa 0%, #ccfbf1 50%, #fffbeb 100%); padding: 2rem; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 2rem; text-align: center;">
-    <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #0d9488; margin-bottom: 0.5rem;">🔍 IdeaToIndia Standalone Agent</div>
-    <div style="font-size: 2.2rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif;">Market Research &amp; Discovery</div>
-    <div style="color: #475569; font-size: 0.95rem; max-width: 600px; margin: 0 auto;">
-        Perform market landscape mapping, identify direct/indirect competitors, target regions, and define your Go-To-Market strategy.
+<div class="hero-card">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span class="status-badge status-badge-ready">🟢 Step 2 of 5</span>
+        <span style="font-size: 0.8rem; color: #6B7280; font-weight: 500;">Market Research &amp; Discovery</span>
     </div>
+    <div class="hero-title">Market Research &amp; Discovery</div>
+    <div class="hero-subtitle">Perform market landscape mapping, identify direct/indirect competitors, target regions, and define your Go-To-Market strategy.</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# Sidebar: Project Workspace, Settings & Shared Memory
+# Header Configuration
 # ---------------------------------------------------------------
-st.sidebar.markdown('### 📁 Project Workspace')
-
-# List projects dynamically
-projects = list_projects()
-try:
-    proj_index = projects.index(st.session_state.current_project)
-except ValueError:
-    proj_index = 0
-
-selected_proj = st.sidebar.selectbox("Active Project Folder", projects, index=proj_index)
-if selected_proj != st.session_state.current_project:
-    st.session_state.current_project = selected_proj
-    load_project_state()
-    st.rerun()
-
-st.sidebar.markdown('---')
-st.sidebar.markdown('### ⚙️ Workspace Settings')
-
-# Engine & Model selection (Defaults to llama-server on GPU)
-llm_engine = st.sidebar.selectbox("LLM Engine", ["Ollama", "llama.cpp (llama-server)", "Google Gemini API"], index=1)
-
-if llm_engine == "Ollama":
-    available_models = get_ollama_models(get_default_ollama_host())
-    selected_model = st.sidebar.selectbox("Active AI Model", available_models, index=0)
-    server_host = st.sidebar.text_input("Ollama Host URL", value=get_default_ollama_host())
-elif llm_engine == "Google Gemini API":
-    gemini_api_key = st.sidebar.text_input("Google Gemini API Key", type="password", value=st.session_state.get("gemini_api_key", ""))
-    st.session_state.gemini_api_key = gemini_api_key
-    selected_model = st.sidebar.selectbox(
-        "Active AI Model", 
-        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"],
-        index=0
-    )
-    server_host = ""
-else:
-    selected_model = "gemma4"
-    server_host = st.sidebar.text_input("llama.cpp Host URL", value=get_default_llm_host())
-
-st.sidebar.markdown('---')
-st.sidebar.markdown('### 📁 Shared Memory (Documents)')
-
-# Document manager listing files
-files = os.listdir(get_docs_dir())
-if not files:
-    st.sidebar.info("Shared memory is currently empty. Prior documents will load here once available.")
-else:
-    st.sidebar.markdown(f"**Files in Memory ({len(files)}):**")
-    for file in sorted(files):
-        with st.sidebar.expander(f"📄 {file}", expanded=False):
-            path = os.path.join(get_docs_dir(), file)
-            ext = os.path.splitext(file)[1].lower()
-            if ext in ['.txt', '.md', '.json']:
-                try:
-                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                        st.text(f.read()[:600] + ("..." if len(f.read()) > 600 else ""))
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            elif ext == '.pdf':
-                pdf_text = read_pdf(path)
-                st.text(pdf_text[:600] + ("..." if len(pdf_text) > 600 else ""))
+selected_model, llm_engine, server_host = render_premium_header_config(2)
 
 # ---------------------------------------------------------------
 # Core Business Idea (Shared)
 # ---------------------------------------------------------------
 with st.container(border=True):
-    st.markdown('### 💡 Shared Business Idea')
+    idea_card_html = """
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: #4B5563; text-transform: uppercase; letter-spacing: 0.05em;">💡 Core Business Idea</div>
+        <div style="font-size: 0.8rem; color: #10B981; display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 10px;">●</span> Autosaved to memory
+        </div>
+    </div>
+    """
+    st.markdown(idea_card_html, unsafe_allow_html=True)
+    
     shared_idea = st.text_area(
         "Describe your core business idea (automatically shared with the Research Agent)",
         value=st.session_state.shared_idea,
         placeholder="e.g. A localized food delivery platform in India that connects home-cooked meal creators (home chefs) directly with corporate professionals seeking healthy lunches.",
-        height=80,
+        height=100,
+        label_visibility="collapsed"
     )
+    char_count = len(shared_idea)
+    st.markdown(f'<div style="text-align: right; font-size: 0.75rem; color: #9CA3AF; margin-top: -8px;">{char_count} characters</div>', unsafe_allow_html=True)
+
     if shared_idea != st.session_state.shared_idea:
         st.session_state.shared_idea = shared_idea
         

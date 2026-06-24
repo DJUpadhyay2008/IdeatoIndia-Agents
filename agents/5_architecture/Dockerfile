@@ -19,6 +19,10 @@ COPY agents/5_architecture/app.py /app/
 COPY agents/5_architecture/agent.py /app/
 COPY agents/5_architecture/logic.py /app/
 
+# Copy externalized subagent prompts/skills/instructions
+COPY agents/5_architecture/subagents /app/subagents
+
+
 # Expose Streamlit port
 EXPOSE 8506
 

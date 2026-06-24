@@ -2,217 +2,138 @@ import streamlit as st
 import os
 
 # Import from local logic and common package
-from logic import check_handoff_status, execute_agent_stream, save_result
+from logic import (
+    check_handoff_status, execute_agent_stream, save_result,
+    get_doc_for_lens, load_subagent, SUBAGENT_REGISTRY
+)
 from common import run_document_refiner, get_docs_dir
 
-CHAT_SYSTEM_PROMPT = """You are the Technical Architecture Chat Assistant. Your job is to help the user understand, refine, and update the 'technical_architecture.md' file.
-You have access to tools to read the current document, write updates to the document, and inspect other files in the workspace.
-If the user asks you to modify the technical stack, database schemas, system architecture design, data flow, or security & compliance sections, use your tools to update the document, and then explain the updates you made.
-Be professional, structured, and helpful."""
+# ---------------------------------------------------------------
+# Lens metadata for display
+# ---------------------------------------------------------------
+LENS_META = {
+    "Summary":        {"icon": "🏗️", "label": "Summary",        "chat_title": "Architecture Summary"},
+    "Business":       {"icon": "💼", "label": "Business",       "chat_title": "Business Architecture"},
+    "Application":    {"icon": "📱", "label": "Application",    "chat_title": "Application Architecture"},
+    "Security":       {"icon": "🔒", "label": "Security",       "chat_title": "Security Architecture"},
+    "Infrastructure": {"icon": "☁️", "label": "Infrastructure", "chat_title": "Infrastructure Architecture"},
+    "Data":           {"icon": "💾", "label": "Data",           "chat_title": "Data Architecture"},
+}
+
+LENS_ORDER = ["Summary", "Business", "Application", "Security", "Infrastructure", "Data"]
+
 
 def render(selected_model, llm_engine, server_host):
+    # ---------------------------------------------------------------
+    # Lens Selector — tabs across the top
+    # ---------------------------------------------------------------
+    tab_labels = [f"{LENS_META[l]['icon']} {LENS_META[l]['label']}" for l in LENS_ORDER]
+    tabs = st.tabs(tab_labels)
+
+    for i, lens in enumerate(LENS_ORDER):
+        with tabs[i]:
+            _render_lens(lens, selected_model, llm_engine, server_host)
+
+
+def _render_lens(lens: str, selected_model: str, llm_engine: str, server_host: str):
+    """Renders the input + output panel for a single architecture lens."""
+
+    target_doc = get_doc_for_lens(lens)
+    meta = LENS_META[lens]
+
+    # Load existing document content from disk
+    proj_dir = get_docs_dir()
+    filepath = os.path.join(proj_dir, target_doc)
+    current_content = ""
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                current_content = f.read()
+        except Exception:
+            pass
+
     col_input, col_out = st.columns([1, 1.2])
+
+    # ------------------------------------------------------------------
+    # LEFT COLUMN — controls
+    # ------------------------------------------------------------------
     with col_input:
         with st.container(border=True):
-            st.markdown('<div class="section-label">Agent Configurations</div>', unsafe_allow_html=True)
-            
-            # Handoff Detection
+            st.markdown(
+                f'<div class="section-label">{meta["icon"]} {meta["label"]} Subagent</div>',
+                unsafe_allow_html=True
+            )
+
+            # Handoff status badge
             status_class, status_text = check_handoff_status()
-            st.markdown(f"""
-            <div class="handoff-status {status_class}">
-                {status_text}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            tech_pref = st.text_input("Tech Stack Preferences", placeholder="e.g. Python (FastAPI), React, Postgres, Supabase...", key="arch_tech")
-            scale = st.text_input("Expected Traffic / User Base", placeholder="e.g. 100 orders/day at launch, up to 10k users/month in Year 1...", key="arch_scale")
-            compliance = st.text_input("Compliance / Safety Needs", placeholder="e.g. Secure payment gateway integration, Indian DPDP compliance...", key="arch_compliance")
-            
+            st.markdown(
+                f'<div class="handoff-status {status_class}">{status_text}</div>',
+                unsafe_allow_html=True
+            )
+
+            tech_pref  = st.text_input("Tech Stack Preferences",
+                                        placeholder="e.g. Python (FastAPI), React, Postgres...",
+                                        key=f"tech_{lens}")
+            scale      = st.text_input("Expected Traffic / User Base",
+                                        placeholder="e.g. 100 orders/day, up to 10k users/month...",
+                                        key=f"scale_{lens}")
+            compliance = st.text_input("Compliance / Safety Needs",
+                                        placeholder="e.g. Indian DPDP, PCI-DSS...",
+                                        key=f"compliance_{lens}")
+
             st.markdown("<br>", unsafe_allow_html=True)
-            generate_arch_btn = st.button("✨ Execute Architecture Agent", key="btn_exec_arch")
-            
-        if st.session_state.architecture_result:
-            # 💬 Floating Chat Refiner Popover (Ask Disha style, default bottom-left and draggable)
-            st.markdown("""
-            <style>
-            /* Position the popover container as fixed on the bottom-left of screen */
-            div[data-testid="stPopover"] {
-                position: fixed !important;
-                bottom: 30px !important;
-                left: 30px !important;
-                right: auto !important;
-                top: auto !important;
-                z-index: 999999 !important;
-            }
-            /* Style the button as a circular chat bubble */
-            div[data-testid="stPopover"] button {
-                border-radius: 50% !important;
-                width: 65px !important;
-                height: 65px !important;
-                font-size: 30px !important;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
-                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
-                color: white !important;
-                border: none !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                transition: transform 0.2s ease-in-out !important;
-                cursor: move !important;
-            }
-            div[data-testid="stPopover"] button:hover {
-                transform: scale(1.1) !important;
-                box-shadow: 0 10px 32px rgba(0,0,0,0.4) !important;
-            }
-            /* Hide the down arrow SVG icon inside the popover button */
-            div[data-testid="stPopover"] button svg {
-                display: none !important;
-            }
-            /* Adjust the floating popup window width/style */
-            div[data-testid="stPopoverBody"] {
-                width: 400px !important;
-                max-width: 90vw !important;
-                border-radius: 16px !important;
-                box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important;
-                border: 1px solid rgba(0, 0, 0, 0.1) !important;
-                background-color: #ffffff !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Inject Draggable Javascript Helper
-            import streamlit.components.v1 as components
-            components.html("""
-            <script>
-            function initDraggable() {
-                const doc = window.parent.document;
-                const el = doc.querySelector('div[data-testid="stPopover"]');
-                if (!el) {
-                    setTimeout(initDraggable, 100);
-                    return;
-                }
-                
-                // Set initial positioning styles if not already set
-                if (!el.style.left || el.style.left === 'auto') {
-                    el.style.setProperty('position', 'fixed', 'important');
-                    el.style.setProperty('bottom', '30px', 'important');
-                    el.style.setProperty('left', '30px', 'important');
-                    el.style.setProperty('right', 'auto', 'important');
-                    el.style.setProperty('top', 'auto', 'important');
-                    el.style.setProperty('z-index', '999999', 'important');
-                }
-                
-                const button = el.querySelector('button');
-                if (!button) return;
-                
-                let isDragging = false;
-                let startX, startY;
-                let initialLeft, initialTop;
-                
-                button.addEventListener('mousedown', (e) => {
-                    if (e.button !== 0) return; // left click only
-                    isDragging = false;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    
-                    const rect = el.getBoundingClientRect();
-                    initialLeft = rect.left;
-                    initialTop = rect.top;
-                    
-                    function onMouseMove(moveEvent) {
-                        const dx = moveEvent.clientX - startX;
-                        const dy = moveEvent.clientY - startY;
-                        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                            isDragging = true;
-                        }
-                        if (isDragging) {
-                            el.style.setProperty('bottom', 'auto', 'important');
-                            el.style.setProperty('right', 'auto', 'important');
-                            el.style.setProperty('left', (initialLeft + dx) + 'px', 'important');
-                            el.style.setProperty('top', (initialTop + dy) + 'px', 'important');
-                        }
-                    }
-                    
-                    function onMouseUp(upEvent) {
-                        doc.removeEventListener('mousemove', onMouseMove);
-                        doc.removeEventListener('mouseup', onMouseUp);
-                    }
-                    
-                    doc.addEventListener('mousemove', onMouseMove);
-                    doc.addEventListener('mouseup', onMouseUp);
-                });
-                
-                button.addEventListener('click', (e) => {
-                    if (isDragging) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                    }
-                }, true);
-            }
-            initDraggable();
-            </script>
-            """, height=0, width=0)
-            
-            with st.popover("💬"):
-                st.markdown("<h3 style='margin-top:0;'>💬 Chat & Refine Technical Architecture</h3>", unsafe_allow_html=True)
-                
-                chat_container = st.container(height=350)
-                with chat_container:
-                    if "arch_chat_history" not in st.session_state:
-                        st.session_state.arch_chat_history = []
-                    for msg in st.session_state.arch_chat_history:
-                        with st.chat_message(msg["role"]):
-                            st.markdown(msg["content"])
-                
-                chat_input = st.chat_input("Suggest changes, ask to rewrite, or Q&A about this document...", key="chat_input_arch")
-                if chat_input:
-                    with st.chat_message("user"):
-                        st.markdown(chat_input)
-                    st.session_state.arch_chat_history.append({"role": "user", "content": chat_input})
-                    
-                    with st.chat_message("assistant"):
-                        response = run_document_refiner(
-                            chat_history=st.session_state.arch_chat_history[:-1],
-                            user_message=chat_input,
-                            project_folder=st.session_state.get("current_project", "default_project"),
-                            target_doc="technical_architecture.md",
-                            agent_system_prompt=CHAT_SYSTEM_PROMPT,
-                            selected_model=selected_model,
-                            llm_engine=llm_engine,
-                            server_host=server_host
-                        )
-                    st.session_state.arch_chat_history.append({"role": "assistant", "content": response})
-                    
-                    # Reload document from disk to ensure UI is in sync
-                    doc_path = os.path.join(get_docs_dir(), "technical_architecture.md")
-                    if os.path.exists(doc_path):
-                        with open(doc_path, "r", encoding="utf-8") as f:
-                            st.session_state.architecture_result = f.read()
-                            
-                    st.rerun()
-        
+            execute_btn = st.button(
+                f"✨ Execute {meta['label']} Subagent",
+                key=f"btn_exec_{lens}",
+                use_container_width=True
+            )
+
+        # Subagent skill viewer (expander)
+        with st.expander(f"📋 View {meta['label']} Subagent Skills & Instructions"):
+            try:
+                sa = load_subagent(lens)
+                st.markdown("**🎭 System Prompt**")
+                st.markdown(sa["system_prompt"])
+                st.markdown("---")
+                st.markdown("**🛠️ Skills**")
+                st.markdown(sa["skills"])
+                st.markdown("---")
+                st.markdown("**📋 Output Instructions**")
+                st.markdown(sa["instructions"])
+            except Exception as e:
+                st.error(f"Could not load subagent files: {e}")
+
+    # ------------------------------------------------------------------
+    # Floating chat popover — rendered OUTSIDE columns at tab root level
+    # so that position:fixed CSS applies to the full viewport
+    # ------------------------------------------------------------------
+    if current_content:
+        _render_chat_popover(lens, target_doc, meta, selected_model, llm_engine, server_host)
+
+    # ------------------------------------------------------------------
+    # RIGHT COLUMN — output
+    # ------------------------------------------------------------------
     with col_out:
-        if generate_arch_btn:
-            if not st.session_state.shared_idea.strip():
-                st.warning("⚠️ Please describe your Business Idea in the field above first.")
+        if execute_btn:
+            if not st.session_state.get("shared_idea", "").strip():
+                st.warning("⚠️ Please describe your Business Idea above first.")
             else:
-                st.session_state.architecture_result = ""
                 with st.container(border=True):
-                    status_placeholder = st.empty()
-                    status_placeholder.markdown(
-                        '<div class="agent-thinking">'
-                        'Designing Technical Architecture Specification'
-                        '<span class="thinking-dot"></span>'
-                        '<span class="thinking-dot"></span>'
-                        '<span class="thinking-dot"></span>'
-                        '</div>',
+                    status_ph = st.empty()
+                    status_ph.markdown(
+                        f'<div class="agent-thinking">'
+                        f'Designing {meta["label"]} Architecture'
+                        f'<span class="thinking-dot"></span>'
+                        f'<span class="thinking-dot"></span>'
+                        f'<span class="thinking-dot"></span>'
+                        f'</div>',
                         unsafe_allow_html=True
                     )
-                    output_placeholder = st.empty()
-                    
+                    output_ph = st.empty()
                     full_text = ""
                     try:
                         stream = execute_agent_stream(
+                            lens=lens,
                             shared_idea=st.session_state.shared_idea,
                             tech_pref=tech_pref,
                             scale=scale,
@@ -223,57 +144,148 @@ def render(selected_model, llm_engine, server_host):
                         )
                         for chunk in stream:
                             full_text += chunk
-                            status_placeholder.empty()
-                            output_placeholder.markdown(full_text)
-                        
-                        st.session_state.architecture_result = full_text
-                        save_result(full_text)
-                        st.toast("✅ Automatically saved 'technical_architecture.md' to Shared Memory!")
+                            status_ph.empty()
+                            output_ph.markdown(full_text)
+
+                        save_result(lens, full_text)
+                        st.toast(f"✅ Saved '{target_doc}' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
-                        status_placeholder.error(f"Error: {e}")
-                
-        elif st.session_state.architecture_result:
-            # 👁️ View / ✍️ Edit Mode Toggle
-            edit_mode = st.toggle("✍️ Edit Document Manually", key="edit_mode_arch")
-            
+                        status_ph.error(f"Error: {e}")
+
+        elif current_content:
+            edit_mode = st.toggle("✍️ Edit Manually", key=f"edit_{lens}")
+
             if edit_mode:
-                edited_text = st.text_area(
-                    "Edit Architecture Document", 
-                    value=st.session_state.architecture_result, 
-                    height=400, 
-                    key="txt_edit_arch"
+                edited = st.text_area(
+                    "Edit Document", value=current_content,
+                    height=450, key=f"ta_edit_{lens}"
                 )
-                if st.button("💾 Save Changes", key="save_arch_manual", use_container_width=True):
-                    save_result(edited_text)
-                    st.session_state.architecture_result = edited_text
-                    st.toast("✅ Manual edits saved successfully!")
+                if st.button("💾 Save Changes", key=f"save_man_{lens}", use_container_width=True):
+                    save_result(lens, edited)
+                    st.toast("✅ Manual edits saved!")
                     st.rerun()
             else:
                 with st.container(border=True):
-                    st.markdown(st.session_state.architecture_result)
-            
-            col_dl, col_sav = st.columns([1, 1])
+                    st.markdown(current_content)
+
+            col_dl, col_sv = st.columns(2)
             with col_dl:
                 st.download_button(
-                    label="⬇️ Download as Markdown",
-                    data=st.session_state.architecture_result,
-                    file_name="technical_architecture.md",
+                    label="⬇️ Download Markdown",
+                    data=current_content,
+                    file_name=target_doc,
                     mime="text/markdown",
                     use_container_width=True,
-                    key="dl_arch"
+                    key=f"dl_{lens}"
                 )
-            with col_sav:
-                if st.button("💾 Save to Shared Memory", key="sav_arch_btn", use_container_width=True):
-                    save_result(st.session_state.architecture_result)
-                    st.toast("✅ Saved 'technical_architecture.md' to Shared Memory!")
+            with col_sv:
+                if st.button("💾 Save to Shared Memory", key=f"sv_{lens}", use_container_width=True):
+                    save_result(lens, current_content)
+                    st.toast(f"✅ Saved '{target_doc}'!")
                     st.rerun()
-                    
         else:
-            st.markdown("""
+            st.markdown(f"""
             <div class="empty-agent-state">
-                <div class="icon">🏗️</div>
-                <div class="title">Architecture Agent</div>
-                <div class="sub">Click "Execute" on the left to design a technical specification.</div>
+                <div class="icon">{meta['icon']}</div>
+                <div class="title">{meta['label']} Architecture</div>
+                <div class="sub">Click "Execute {meta['label']} Subagent" on the left to generate this lens.</div>
             </div>
             """, unsafe_allow_html=True)
+
+
+def _render_chat_popover(lens: str, target_doc: str, meta: dict,
+                          selected_model: str, llm_engine: str, server_host: str):
+    """Floating chat popover for refining the active lens document."""
+    st.markdown("""
+    <style>
+    div[data-testid="stPopover"] {
+        position: fixed !important;
+        bottom: 30px !important;
+        left: 30px !important;
+        right: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+    }
+    div[data-testid="stPopover"] button {
+        border-radius: 50% !important;
+        width: 65px !important;
+        height: 65px !important;
+        font-size: 30px !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+        color: white !important;
+        border: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: transform 0.2s ease-in-out !important;
+    }
+    div[data-testid="stPopover"] button:hover {
+        transform: scale(1.1) !important;
+    }
+    div[data-testid="stPopover"] button svg { display: none !important; }
+    div[data-testid="stPopoverBody"] {
+        width: 420px !important;
+        max-width: 90vw !important;
+        border-radius: 16px !important;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
+        background-color: #ffffff !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Load the system prompt for the chat agent from the subagent files
+    try:
+        sa = load_subagent(lens)
+        chat_system_prompt = (
+            f"You are the {meta['chat_title']} Chat Assistant.\n\n"
+            f"{sa['system_prompt']}\n\n"
+            f"{sa['skills']}\n\n"
+            f"Your target document is '{target_doc}'. "
+            f"Use tools to read and write updates when the user asks for changes."
+        )
+    except Exception:
+        chat_system_prompt = (
+            f"You are an architecture assistant. "
+            f"Your target document is '{target_doc}'. Use tools to read and write updates."
+        )
+
+    chat_key = f"chat_hist_{lens}"
+
+    with st.popover("💬"):
+        st.markdown(
+            f"<h3 style='margin-top:0;'>💬 Refine: {meta['chat_title']}</h3>",
+            unsafe_allow_html=True
+        )
+        chat_container = st.container(height=350)
+        with chat_container:
+            if chat_key not in st.session_state:
+                st.session_state[chat_key] = []
+            for msg in st.session_state[chat_key]:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+
+        chat_input = st.chat_input(
+            "Ask a question or suggest a change...",
+            key=f"chat_in_{lens}"
+        )
+        if chat_input:
+            with st.chat_message("user"):
+                st.markdown(chat_input)
+            st.session_state[chat_key].append({"role": "user", "content": chat_input})
+
+            with st.chat_message("assistant"):
+                response = run_document_refiner(
+                    chat_history=st.session_state[chat_key][:-1],
+                    user_message=chat_input,
+                    project_folder=st.session_state.get("current_project", "default_project"),
+                    target_doc=target_doc,
+                    agent_system_prompt=chat_system_prompt,
+                    selected_model=selected_model,
+                    llm_engine=llm_engine,
+                    server_host=server_host
+                )
+            st.session_state[chat_key].append({"role": "assistant", "content": response})
+            st.rerun()

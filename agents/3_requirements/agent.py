@@ -3,7 +3,7 @@ import os
 
 # Import from local logic and common package
 from logic import get_handoff_files_present, execute_agent_stream, save_result
-from common import run_document_refiner, get_docs_dir
+from common import run_document_refiner, get_docs_dir, strip_yaml_front_matter
 
 CHAT_SYSTEM_PROMPT = """You are the Product Requirements Document (PRD) Chat Assistant. Your job is to help the user understand, refine, and update the 'prd_requirements.md' file.
 You have access to tools to read the current document, write updates to the document, and inspect other files in the workspace.
@@ -203,7 +203,7 @@ def render(selected_model, llm_engine, server_host):
                     doc_path = os.path.join(get_docs_dir(), "prd_requirements.md")
                     if os.path.exists(doc_path):
                         with open(doc_path, "r", encoding="utf-8") as f:
-                            st.session_state.requirements_result = f.read()
+                            st.session_state.requirements_result = strip_yaml_front_matter(f.read())
                             
                     st.rerun()
         
@@ -243,7 +243,7 @@ def render(selected_model, llm_engine, server_host):
                             output_placeholder.markdown(full_text)
                         
                         st.session_state.requirements_result = full_text
-                        save_result(full_text)
+                        save_result(full_text, selected_model, llm_engine, server_host)
                         st.toast("✅ Automatically saved 'prd_requirements.md' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
@@ -261,7 +261,7 @@ def render(selected_model, llm_engine, server_host):
                     key="txt_edit_req"
                 )
                 if st.button("💾 Save Changes", key="save_req_manual", use_container_width=True):
-                    save_result(edited_text)
+                    save_result(edited_text, selected_model, llm_engine, server_host)
                     st.session_state.requirements_result = edited_text
                     st.toast("✅ Manual edits saved successfully!")
                     st.rerun()
@@ -281,7 +281,7 @@ def render(selected_model, llm_engine, server_host):
                 )
             with col_sav:
                 if st.button("💾 Save to Shared Memory", key="sav_req_btn", use_container_width=True):
-                    save_result(st.session_state.requirements_result)
+                    save_result(st.session_state.requirements_result, selected_model, llm_engine, server_host)
                     st.toast("✅ Saved 'prd_requirements.md' to Shared Memory!")
                     st.rerun()
                     

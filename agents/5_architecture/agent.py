@@ -6,7 +6,7 @@ from logic import (
     check_handoff_status, execute_agent_stream, save_result,
     get_doc_for_lens, load_subagent, SUBAGENT_REGISTRY
 )
-from common import run_document_refiner, get_docs_dir
+from common import run_document_refiner, get_docs_dir, strip_yaml_front_matter
 
 # ---------------------------------------------------------------
 # Lens metadata for display
@@ -48,7 +48,7 @@ def _render_lens(lens: str, selected_model: str, llm_engine: str, server_host: s
     if os.path.exists(filepath):
         try:
             with open(filepath, "r", encoding="utf-8") as f:
-                current_content = f.read()
+                current_content = strip_yaml_front_matter(f.read())
         except Exception:
             pass
 
@@ -147,7 +147,7 @@ def _render_lens(lens: str, selected_model: str, llm_engine: str, server_host: s
                             status_ph.empty()
                             output_ph.markdown(full_text)
 
-                        save_result(lens, full_text)
+                        save_result(lens, full_text, selected_model, llm_engine, server_host)
                         st.toast(f"✅ Saved '{target_doc}' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
@@ -162,7 +162,7 @@ def _render_lens(lens: str, selected_model: str, llm_engine: str, server_host: s
                     height=450, key=f"ta_edit_{lens}"
                 )
                 if st.button("💾 Save Changes", key=f"save_man_{lens}", use_container_width=True):
-                    save_result(lens, edited)
+                    save_result(lens, edited, selected_model, llm_engine, server_host)
                     st.toast("✅ Manual edits saved!")
                     st.rerun()
             else:
@@ -181,7 +181,7 @@ def _render_lens(lens: str, selected_model: str, llm_engine: str, server_host: s
                 )
             with col_sv:
                 if st.button("💾 Save to Shared Memory", key=f"sv_{lens}", use_container_width=True):
-                    save_result(lens, current_content)
+                    save_result(lens, current_content, selected_model, llm_engine, server_host)
                     st.toast(f"✅ Saved '{target_doc}'!")
                     st.rerun()
         else:

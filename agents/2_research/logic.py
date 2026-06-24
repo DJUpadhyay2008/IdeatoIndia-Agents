@@ -3,7 +3,7 @@ import sys
 import argparse
 
 # Import from common package
-from common import stream_chat, save_document, load_shared_memory, get_docs_dir
+from common import stream_chat, save_document, load_shared_memory, get_docs_dir, save_document_with_metadata
 
 SYSTEM_PROMPT = """You are a Market Research Analyst and Competitive Intelligence Specialist. Your goal is to analyze the market landscape, target audience, and potential competitors for the business idea.
 
@@ -56,9 +56,9 @@ def execute_agent_stream(shared_idea: str, competitors: str, region: str, market
     ]
     return stream_chat(msgs, selected_model, llm_engine, server_host)
 
-def save_result(content: str):
+def save_result(content: str, selected_model: str = None, llm_engine: str = None, server_host: str = None):
     """Saves the market research document to the workspace."""
-    save_document("market_research.md", content)
+    save_document_with_metadata("market_research.md", content, "Market Research", selected_model, llm_engine, server_host)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Standalone Research Agent")
@@ -93,7 +93,7 @@ if __name__ == "__main__":
             sys.stdout.flush()
         print("\n")
         
-        save_result(full_text)
+        save_result(full_text, args.model, args.engine, args.host)
         print("Success! Generated 'market_research.md' in Shared Memory.")
     except Exception as e:
         print(f"\nError executing agent: {e}", file=sys.stderr)

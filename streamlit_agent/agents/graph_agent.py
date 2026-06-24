@@ -37,26 +37,27 @@ def get_chat_model(selected_model: str, llm_engine: str, server_host: str) -> Ba
         if not api_key:
             raise ValueError("Google Gemini API Key is missing. Please set it in the sidebar or GEMINI_API_KEY environment variable.")
             
-        return ChatGoogleGenerativeAI(
+        model = ChatGoogleGenerativeAI(
             model=selected_model,
             google_api_key=api_key,
             temperature=0.2
         )
     elif llm_engine == "Ollama":
         from langchain_ollama import ChatOllama
-        return ChatOllama(
+        model = ChatOllama(
             model=selected_model,
             base_url=server_host,
             temperature=0.2
         )
     else:  # llama.cpp
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
+        model = ChatOpenAI(
             model=selected_model,
             openai_api_key="pct",  # dummy key
             openai_api_base=f"{server_host}/v1",
             temperature=0.2
         )
+    return model
 
 # ----------------------------------------------------------------------
 # 3. Dynamic Tool Builder
@@ -188,37 +189,69 @@ def run_document_refiner(
     status_placeholder.markdown("*Agent thinking...*")
     
     # Run graph stream
+    MAX_RETRIES = 3
+    last_error = None
+
     with open("agent_debug.log", "a", encoding="utf-8") as log_file:
-        log_file.write(f"--- START GRAPH RUN: target_doc={target_doc} ---\n")
-        try:
-            for output in graph.stream(inputs, config={"recursion_limit": 20}):
-                log_file.write(f"Graph yield output keys: {list(output.keys())}\n")
-                for node_name, state_update in output.items():
-                    log_file.write(f"Node: {node_name}\n")
-                    if state_update and "messages" in state_update:
-                        new_msg = state_update["messages"][-1]
-                        log_file.write(f"  Msg type: {type(new_msg).__name__}\n")
-                        log_file.write(f"  Msg content: {repr(new_msg.content)}\n")
-                        if hasattr(new_msg, "tool_calls"):
-                            log_file.write(f"  Tool calls: {repr(new_msg.tool_calls)}\n")
-                        
-                        if node_name in ("agent", "model"):
-                            if isinstance(new_msg, AIMessage) and new_msg.content:
-                                full_response = new_msg.content
-                                response_placeholder.markdown(full_response)
-                            elif not isinstance(new_msg, AIMessage):
-                                log_file.write(f"  WARNING: msg is not AIMessage\n")
+        for attempt in range(1, MAX_RETRIES + 1):
+            log_file.write(f"--- START GRAPH RUN (attempt {attempt}/{MAX_RETRIES}): target_doc={target_doc} ---\n")
+            full_response = ""
+            try:
+                for output in graph.stream(inputs, config={"recursion_limit": 20}):
+                    log_file.write(f"Graph yield output keys: {list(output.keys())}\n")
+                    for node_name, state_update in output.items():
+                        log_file.write(f"Node: {node_name}\n")
+                        if state_update and "messages" in state_update:
+                            new_msg = state_update["messages"][-1]
+                            log_file.write(f"  Msg type: {type(new_msg).__name__}\n")
+                            log_file.write(f"  Msg content: {repr(new_msg.content)}\n")
+                            if hasattr(new_msg, "tool_calls"):
+                                log_file.write(f"  Tool calls: {repr(new_msg.tool_calls)}\n")
+
+                            if node_name in ("agent", "model"):
+                                if isinstance(new_msg, AIMessage) and new_msg.content:
+                                    full_response = new_msg.content
+                                    response_placeholder.markdown(full_response)
+                                elif not isinstance(new_msg, AIMessage):
+                                    log_file.write(f"  WARNING: msg is not AIMessage\n")
+                        else:
+                            log_file.write(f"  No messages in state_update\n")
+
+                        if state_update and node_name == "tools" and "messages" in state_update:
+                            tool_msg = state_update["messages"][-1]
+                            status_placeholder.markdown(f"🛠️ *Executing Action:* {tool_msg.name}")
+
+                log_file.write(f"--- END GRAPH RUN: full_response length={len(full_response)} ---\n")
+                break  # Success — exit the retry loop
+
+            except Exception as err:
+                last_error = err
+                log_file.write(f"EXCEPTION on attempt {attempt}: {err}\n")
+                import traceback
+                traceback.print_exc(file=log_file)
+                if attempt < MAX_RETRIES:
+                    import time
+                    wait = 2 ** attempt  # exponential back-off: 2s, 4s
+                    status_placeholder.markdown(f"⚠️ *Connection issue, retrying in {wait}s (attempt {attempt}/{MAX_RETRIES})...*")
+                    time.sleep(wait)
+                else:
+                    error_message = str(last_error)
+                    if any(k in error_message.lower() for k in ["connection refused", "connection error", "connecterror", "connection"]):
+                        full_response = (
+                            "⚠️ **Connection Refused / LLM Service Offline**\n\n"
+                            "The agent could not connect to the local LLM server after multiple retries. Please ensure that either:\n"
+                            "1. **Ollama** (typically on port `11434`) is running.\n"
+                            "2. **llama-server** (typically on port `8080`) is running.\n\n"
+                            "Or switch your LLM Engine in the sidebar configuration.\n\n"
+                            f"*Technical details: {error_message}*"
+                        )
                     else:
-                        log_file.write(f"  No messages in state_update\n")
-                    
-                    if state_update and node_name == "tools" and "messages" in state_update:
-                        tool_msg = state_update["messages"][-1]
-                        status_placeholder.markdown(f"🛠️ *Executing Action:* {tool_msg.name}")
-        except Exception as err:
-            log_file.write(f"EXCEPTION DURING RUN: {err}\n")
-            import traceback
-            traceback.print_exc(file=log_file)
-            raise err
-        log_file.write(f"--- END GRAPH RUN: full_response length={len(full_response)} ---\n")
+                        full_response = (
+                            "⚠️ **Agent Execution Error**\n\n"
+                            "An unexpected error occurred while refining the document after multiple retries.\n\n"
+                            f"*Technical details: {error_message}*"
+                        )
+                    response_placeholder.markdown(full_response)
+
     status_placeholder.empty()
     return full_response

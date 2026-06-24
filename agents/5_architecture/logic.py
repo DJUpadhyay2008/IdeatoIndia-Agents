@@ -139,7 +139,8 @@ def execute_agent_stream(lens: str, shared_idea: str, tech_pref: str,
     return stream_chat(messages, selected_model, llm_engine, server_host)
 
 
-def save_result(lens: str, content: str):
+def save_result(lens: str, content: str, selected_model: str = None, llm_engine: str = None, server_host: str = None):
     """Saves the generated content to the correct lens document."""
     doc_name = get_doc_for_lens(lens)
-    save_document(doc_name, content)
+    from common import save_document_with_metadata
+    save_document_with_metadata(doc_name, content, f"{lens} Architecture", selected_model, llm_engine, server_host)

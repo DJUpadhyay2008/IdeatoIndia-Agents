@@ -3,7 +3,7 @@ import sys
 import argparse
 
 # Import from common package
-from common import stream_chat, save_document, load_shared_memory, get_docs_dir
+from common import stream_chat, save_document, load_shared_memory, get_docs_dir, save_document_with_metadata
 
 SYSTEM_PROMPT = """You are a Startup Operations Specialist, Agile Coach, and Project Manager. Your goal is to break down the business idea and requirements into a practical launch roadmap and phase-by-phase task checklist.
 
@@ -64,9 +64,9 @@ def execute_agent_stream(shared_idea: str, timeline: str, budget: str, constrain
     ]
     return stream_chat(msgs, selected_model, llm_engine, server_host)
 
-def save_result(content: str):
+def save_result(content: str, selected_model: str = None, llm_engine: str = None, server_host: str = None):
     """Saves the planning document to the workspace."""
-    save_document("launch_plan.md", content)
+    save_document_with_metadata("launch_plan.md", content, "Launch Plan & Roadmap", selected_model, llm_engine, server_host)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Standalone Planning Agent")
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             sys.stdout.flush()
         print("\n")
         
-        save_result(full_text)
+        save_result(full_text, args.model, args.engine, args.host)
         print("Success! Generated 'launch_plan.md' in Shared Memory.")
     except Exception as e:
         print(f"\nError executing agent: {e}", file=sys.stderr)

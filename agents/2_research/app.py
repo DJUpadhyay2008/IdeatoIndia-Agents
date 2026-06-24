@@ -19,6 +19,7 @@ from common import (
     get_default_ollama_host,
     inject_premium_ui,
     render_premium_header_config,
+    strip_yaml_front_matter,
 )
 import agent
 
@@ -62,7 +63,10 @@ def load_project_state():
         if os.path.exists(filepath):
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
-                    st.session_state[varname] = f.read()
+                    content = f.read()
+                    if filename.endswith(".md"):
+                        content = strip_yaml_front_matter(content)
+                    st.session_state[varname] = content
             except Exception:
                 pass
 

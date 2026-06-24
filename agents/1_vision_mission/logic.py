@@ -3,7 +3,7 @@ import sys
 import argparse
 
 # Import from common package
-from common import stream_chat, save_document, load_shared_memory
+from common import stream_chat, save_document, load_shared_memory, save_document_with_metadata
 
 SYSTEM_PROMPT = """You are an expert business strategist and brand consultant with 20+ years of experience helping startups and enterprises craft powerful brand identities.
 
@@ -51,9 +51,9 @@ def execute_agent_stream(shared_idea: str, industry: str, audience: str, princip
     ]
     return stream_chat(msgs, selected_model, llm_engine, server_host)
 
-def save_result(content: str):
+def save_result(content: str, selected_model: str = None, llm_engine: str = None, server_host: str = None):
     """Saves the vision and mission document to the workspace."""
-    save_document("vision_mission.md", content)
+    save_document_with_metadata("vision_mission.md", content, "Vision & Mission Identity", selected_model, llm_engine, server_host)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Standalone Vision & Mission Agent")

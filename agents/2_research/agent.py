@@ -3,7 +3,7 @@ import os
 
 # Import from local logic and common package
 from logic import check_handoff_status, execute_agent_stream, save_result
-from common import run_document_refiner, get_docs_dir
+from common import run_document_refiner, get_docs_dir, strip_yaml_front_matter
 
 CHAT_SYSTEM_PROMPT = """You are the Market Research & Discovery Chat Assistant. Your job is to help the user understand, refine, and update the 'market_research.md' file.
 You have access to tools to read the current document, write updates to the document, and inspect other files in the workspace.
@@ -193,7 +193,7 @@ def render(selected_model, llm_engine, server_host):
                     doc_path = os.path.join(get_docs_dir(), "market_research.md")
                     if os.path.exists(doc_path):
                         with open(doc_path, "r", encoding="utf-8") as f:
-                            st.session_state.research_result = f.read()
+                            st.session_state.research_result = strip_yaml_front_matter(f.read())
                             
                     st.rerun()
         
@@ -233,7 +233,7 @@ def render(selected_model, llm_engine, server_host):
                             output_placeholder.markdown(full_text)
                         
                         st.session_state.research_result = full_text
-                        save_result(full_text)
+                        save_result(full_text, selected_model, llm_engine, server_host)
                         st.toast("✅ Automatically saved 'market_research.md' to Shared Memory!")
                         st.rerun()
                     except Exception as e:
@@ -251,7 +251,7 @@ def render(selected_model, llm_engine, server_host):
                     key="txt_edit_res"
                 )
                 if st.button("💾 Save Changes", key="save_res_manual", use_container_width=True):
-                    save_result(edited_text)
+                    save_result(edited_text, selected_model, llm_engine, server_host)
                     st.session_state.research_result = edited_text
                     st.toast("✅ Manual edits saved successfully!")
                     st.rerun()
@@ -271,7 +271,7 @@ def render(selected_model, llm_engine, server_host):
                 )
             with col_sav:
                 if st.button("💾 Save to Shared Memory", key="sav_res_btn", use_container_width=True):
-                    save_result(st.session_state.research_result)
+                    save_result(st.session_state.research_result, selected_model, llm_engine, server_host)
                     st.toast("✅ Saved 'market_research.md' to Shared Memory!")
                     st.rerun()
                     
